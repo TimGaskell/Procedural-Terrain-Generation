@@ -12,13 +12,35 @@ public class CustomTerrain : MonoBehaviour
     public Texture2D heightMapImage;
     public Vector3 heightMapScale = new Vector3(1, 1, 1);
 
+    public bool resetTerrain = true;
+
     //PERLIN NOISE ----------------------------------
     public float perlinXScale = 0.01f;
     public float perlinYScale = 0.01f;
     public int perlinOffsetX = 0;
     public int perlinOffsetY = 0;
+    public int perlinOctaves = 3;
+    public float perlinPersistance = 8;
+    public float perlinHeightScale = 0.09f;
+
+    //MULTIPLE PERLIN -------------
+    [System.Serializable]
+    public class PerlinParamters {
+        public float mPerlinXScale = 0.01f;
+        public float mPerlinYScale = 0.01f;
+        public int mPerlinOctaves = 3;
+        public float mPerlinPersistance = 8;
+        public float mPerlinHeighScale = 0.09f;
+        public int mPerlinOffsetX = 0;
+        public int mPerlinOffsetY = 0;
+        public bool remove = false;
     
-    
+    }
+
+    public List<PerlinParamters> perlinParamters = new List<PerlinParamters>() {
+        new PerlinParamters()
+    };
+
     public Terrain terrain;
     public TerrainData terrainData;
 
@@ -81,12 +103,23 @@ public class CustomTerrain : MonoBehaviour
         }
     }
 
+    float[,] GetHeightMap() {
+
+        if (!resetTerrain) {
+            return terrainData.GetHeights(0, 0, terrainData.heightmapWidth, terrainData.heightmapHeight);
+        }
+        else {
+            return new float[terrainData.heightmapWidth, terrainData.heightmapHeight];
+        }
+
+    }
+
     /// <summary>
     /// Generates a random terrain from a height range.
     /// </summary>
     public void RandomTerrain() {
 
-        float[,] heightMap = terrainData.GetHeights(0,0,terrainData.heightmapWidth,terrainData.heightmapHeight);
+        float[,] heightMap = GetHeightMap();
 
         for(int x = 0; x < terrainData.heightmapWidth; x++) {
             for(int z = 0; z < terrainData.heightmapHeight; z++) {
@@ -101,9 +134,8 @@ public class CustomTerrain : MonoBehaviour
     /// </summary>
     public void ResetTerrain() {
 
-        float[,] heightMap;
-        heightMap = new float[terrainData.heightmapWidth, terrainData.heightmapWidth];
-
+        float[,] heightMap = new float[terrainData.heightmapWidth, terrainData.heightmapHeight];
+        
         for (int x = 0; x < terrainData.heightmapWidth; x++) {
             for (int z = 0; z < terrainData.heightmapHeight; z++) {
                 heightMap[x, z] = 0;
@@ -116,31 +148,102 @@ public class CustomTerrain : MonoBehaviour
     /// Generates a terrain by reading in a texture
     /// </summary>
     public void LoadTexture() {
-        float[,] heightMap;
-
-        heightMap = new float[terrainData.heightmapWidth, terrainData.heightmapWidth];
+        
+        float[,] heightMap = GetHeightMap();
 
         for (int x = 0; x < terrainData.heightmapWidth; x++) {
             for (int z = 0; z < terrainData.heightmapHeight; z++) {
-                heightMap[x, z] = heightMapImage.GetPixel((int)(x * heightMapScale.x), (int)(z * heightMapScale.z)).grayscale * heightMapScale.y;
+                heightMap[x, z] += heightMapImage.GetPixel((int)(x * heightMapScale.x), (int)(z * heightMapScale.z)).grayscale * heightMapScale.y;
             }
         }
         terrainData.SetHeights(0, 0, heightMap);
     }
 
     /// <summary>
-    /// Generates a terrain by using a 2D perlin noise
+    /// Generates a terrain by using multiple 2D perlin noises of the same parameters 
     /// </summary>
     public void Perlin() {
-        float[,] heightMap;
-        heightMap = new float[terrainData.heightmapWidth, terrainData.heightmapWidth];
 
+        float[,] heightMap = GetHeightMap();
+       
 
         for (int x = 0; x < terrainData.heightmapWidth; x++) {
             for (int y = 0; y < terrainData.heightmapHeight; y++) {
-                heightMap[x, y] = Mathf.PerlinNoise((x + perlinOffsetX) * perlinXScale, (y  + perlinOffsetY)* perlinYScale);
+               
+                heightMap[x, y] += Utility.fBM((x+perlinOffsetX)* perlinXScale, (y + perlinOffsetY) * perlinYScale, perlinOctaves, perlinPersistance) * perlinHeightScale;
             }
         }
         terrainData.SetHeights(0, 0, heightMap);
     }
+
+    /// <summary>
+    /// Generates a terrain by using multiple 2D perlin noises that have varying parameters
+    /// </summary>
+    public void MultiplePerlinTerrain() {
+
+        float[,] heightMap = GetHeightMap();
+
+        for (int x = 0; x < terrainData.heightmapWidth; x++) {
+            for (int y = 0; y < terrainData.heightmapHeight; y++) {
+
+                foreach(PerlinParamters p in perlinParamters) {
+                    heightMap[x, y] += Utility.fBM((x + p.mPerlinOffsetX) * p.mPerlinXScale , (y + p.mPerlinOffsetY) * p.mPerlinYScale, p.mPerlinOctaves, p.mPerlinPersistance) * p.mPerlinHeighScale;
+                }
+               
+            }
+        }
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+    /// <summary>
+    /// Adds a new perlin noise set of parameters to a list
+    /// </summary>
+    public void AddNewPerlin() {
+        perlinParamters.Add(new PerlinParamters());
+    }
+     
+    /// <summary>
+    /// Removes a perlin noise set of parameters if it has selected to be removed. List must have 1 set of parameters at all times.
+    /// </summary>
+    public void RemovePerlin() {
+        List<PerlinParamters> keptPerlinParameters = new List<PerlinParamters>();
+
+        for (int i =0; i < perlinParamters.Count; i++) {
+            if (!perlinParamters[i].remove) {
+                keptPerlinParameters.Add(perlinParamters[i]);
+            }
+        }
+        if(keptPerlinParameters.Count == 0) { // don't want to keep any
+            keptPerlinParameters.Add(perlinParamters[0]); // add at least 1
+        }
+        perlinParamters = keptPerlinParameters;
+    }
+
+    /// <summary>
+    /// Generates a random mountain on the terrain
+    /// </summary>
+    public void Voronoi() {
+
+        float[,] heightMap = GetHeightMap();
+        float fallOff = 0.5f;
+        Vector3 peak = new Vector3(UnityEngine.Random.Range(0, terrainData.heightmapWidth),
+                                   UnityEngine.Random.Range(0.0f, 1.0f),
+                                   UnityEngine.Random.Range(0, terrainData.heightmapHeight)); //random location on the map
+        heightMap[(int)peak.x, (int)peak.z] = peak.y;
+
+        Vector2 peakLocation = new Vector2(peak.x, peak.z);
+        float maxDistance = Vector2.Distance(new Vector2(0, 0), new Vector2(terrainData.heightmapWidth, terrainData.heightmapHeight)); //distance from corner to corner
+
+        for(int y = 0; y < terrainData.heightmapHeight; y++) {
+            for (int x = 0; x < terrainData.heightmapWidth; x++) {
+                if(!(x == peak.x && y == peak.z)) { // not at the peak
+                    float distanceToPeak = Vector2.Distance(peakLocation, new Vector2(x, y)) * fallOff;
+                    heightMap[x, y] = peak.y - (distanceToPeak / maxDistance); // increases height around the map by its proximity to the peak
+                }
+            }
+
+        }
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+    
 }

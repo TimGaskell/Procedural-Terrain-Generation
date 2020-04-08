@@ -16,12 +16,21 @@ public class CustomTerrainEditor : Editor
     SerializedProperty perlinYScale;
     SerializedProperty perlinOffsetX;
     SerializedProperty perlinOffsetY;
+    SerializedProperty perlinOctaves;
+    SerializedProperty perlinPersistance;
+    SerializedProperty perlinHeightScale;
+    SerializedProperty resetTerrain;
+
+    GUITableState perlinParameterTable;
+    SerializedProperty perlinParameters;
 
 
     //Fold Outs ------
     bool showRandom = false;
     bool showLoadHeights = false;
     bool showPerlinNoise = false;
+    bool showMultiplePerlin = false;
+    bool showVoroni = false;
 
     private void OnEnable() {
 
@@ -32,6 +41,12 @@ public class CustomTerrainEditor : Editor
         perlinYScale = serializedObject.FindProperty("perlinYScale");
         perlinOffsetX = serializedObject.FindProperty("perlinOffsetX");
         perlinOffsetY = serializedObject.FindProperty("perlinOffsetY");
+        perlinOctaves = serializedObject.FindProperty("perlinOctaves");
+        perlinPersistance = serializedObject.FindProperty("perlinPersistance");
+        perlinHeightScale = serializedObject.FindProperty("perlinHeightScale");
+        resetTerrain = serializedObject.FindProperty("resetTerrain");
+        perlinParameterTable = new GUITableState("perlinParameterTable");
+        perlinParameters = serializedObject.FindProperty("perlinParamters");
     }
 
     /// <summary>
@@ -42,6 +57,7 @@ public class CustomTerrainEditor : Editor
         serializedObject.Update();
 
         CustomTerrain terrain = (CustomTerrain)target;
+        EditorGUILayout.PropertyField(resetTerrain);
 
         showRandom = EditorGUILayout.Foldout(showRandom, "Random");
        
@@ -55,7 +71,6 @@ public class CustomTerrainEditor : Editor
                 terrain.RandomTerrain(); //If button pressed will execute code
             }
         }
-
 
         showLoadHeights = EditorGUILayout.Foldout(showLoadHeights, "Load Heights");
 
@@ -80,9 +95,48 @@ public class CustomTerrainEditor : Editor
             EditorGUILayout.Slider(perlinYScale, 0, 1, new GUIContent("Y Scale"));
             EditorGUILayout.IntSlider(perlinOffsetX, 0, 10000, new GUIContent("Offset X"));
             EditorGUILayout.IntSlider(perlinOffsetY, 0, 10000, new GUIContent("Offset Y"));
+            EditorGUILayout.IntSlider(perlinOctaves, 1, 10, new GUIContent("Octaves"));
+            EditorGUILayout.Slider(perlinPersistance, 1, 10, new GUIContent("Persistence"));
+            EditorGUILayout.Slider(perlinHeightScale, 0, 1, new GUIContent("Height Scale"));
             if (GUILayout.Button("Perlin")) {
                 terrain.Perlin();
             }
+        }
+
+        showMultiplePerlin = EditorGUILayout.Foldout(showMultiplePerlin, "Multiple Perlin Noise");
+
+        // Items included in the foldout for generating terrain with multiple Perlin noises;
+        if (showMultiplePerlin) {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Multiple Perlin Noise", EditorStyles.boldLabel);
+            perlinParameterTable = GUITableLayout.DrawTable(perlinParameterTable, perlinParameters);  // creates a table which stores each perlin noise
+
+            GUILayout.Space(20);
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("+")){
+                terrain.AddNewPerlin();
+            }
+            if (GUILayout.Button("-")) {
+                terrain.RemovePerlin();
+            }
+            EditorGUILayout.EndHorizontal();
+            if(GUILayout.Button("Apply Multiple Perlin")) {
+
+                terrain.MultiplePerlinTerrain();
+            }
+
+        }
+
+        showVoroni = EditorGUILayout.Foldout(showVoroni, "Voronoi");
+
+        // Items included in the folout for generating a Voroni mountain on the terrain
+        if (showVoroni) {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+
+            if (GUILayout.Button("Voroni")) {
+                terrain.Voronoi();
+            }
+
         }
 
         // Creates the reset button
