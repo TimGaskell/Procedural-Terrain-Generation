@@ -20,6 +20,12 @@ public class CustomTerrainEditor : Editor
     SerializedProperty perlinPersistance;
     SerializedProperty perlinHeightScale;
     SerializedProperty resetTerrain;
+    SerializedProperty voronoiPeakCount;
+    SerializedProperty voronoiFallOff;
+    SerializedProperty voronoiDropOff;
+    SerializedProperty voronoiMinHeight;
+    SerializedProperty voronoiMaxHeight;
+    SerializedProperty voronoiType;
 
     GUITableState perlinParameterTable;
     SerializedProperty perlinParameters;
@@ -31,6 +37,7 @@ public class CustomTerrainEditor : Editor
     bool showPerlinNoise = false;
     bool showMultiplePerlin = false;
     bool showVoroni = false;
+    bool showMidPointDisplacement = false;
 
     private void OnEnable() {
 
@@ -47,6 +54,12 @@ public class CustomTerrainEditor : Editor
         resetTerrain = serializedObject.FindProperty("resetTerrain");
         perlinParameterTable = new GUITableState("perlinParameterTable");
         perlinParameters = serializedObject.FindProperty("perlinParamters");
+        voronoiPeakCount = serializedObject.FindProperty("voronoiPeakCount");
+        voronoiFallOff = serializedObject.FindProperty("voronoiFallOff");
+        voronoiDropOff = serializedObject.FindProperty("voronoiDropOff");
+        voronoiMinHeight = serializedObject.FindProperty("voronoiMinHeight");
+        voronoiMaxHeight = serializedObject.FindProperty("voronoiMaxHeight");
+        voronoiType = serializedObject.FindProperty("voronoiType");
     }
 
     /// <summary>
@@ -129,18 +142,37 @@ public class CustomTerrainEditor : Editor
 
         showVoroni = EditorGUILayout.Foldout(showVoroni, "Voronoi");
 
-        // Items included in the folout for generating a Voroni mountain on the terrain
+        // Items included in the folout for generating a Voronoi mountain on the terrain
         if (showVoroni) {
             EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            EditorGUILayout.IntSlider(voronoiPeakCount, 1, 10, new GUIContent("Peak Count"));
+            EditorGUILayout.Slider(voronoiFallOff, 0, 10, new GUIContent("Fall off"));
+            EditorGUILayout.Slider(voronoiDropOff, 0, 10, new GUIContent("Drop off"));
+            EditorGUILayout.Slider(voronoiMinHeight, 0, 1, new GUIContent("Min Height"));
+            EditorGUILayout.Slider(voronoiMaxHeight, 0, 1, new GUIContent("Max Height"));
+            EditorGUILayout.PropertyField(voronoiType);
 
-            if (GUILayout.Button("Voroni")) {
+
+            if (GUILayout.Button("Voronoi")) {
                 terrain.Voronoi();
             }
 
         }
 
+        showMidPointDisplacement = EditorGUILayout.Foldout(showMidPointDisplacement, "Mid Point Displacement");
+
+        // Items included in the folout for generating a Mid point displacement mountain on the terrain
+        if (showMidPointDisplacement) {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+
+            if (GUILayout.Button("Mid Point Displacement")) {
+                terrain.MidPointDisplacement();
+            }
+        }
+
         // Creates the reset button
-        EditorGUILayout.LabelField("", GUI.skin.horizontalSlider); 
+        EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+    
         if (GUILayout.Button("Reset Terrain")) { 
             terrain.ResetTerrain();
         }

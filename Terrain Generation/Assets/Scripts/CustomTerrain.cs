@@ -36,6 +36,14 @@ public class CustomTerrain : MonoBehaviour
         public bool remove = false;
     
     }
+    //VORONOI -------------
+    public int voronoiPeakCount = 5;
+    public float voronoiFallOff = 0.2f;
+    public float voronoiDropOff = 0.6f;
+    public float voronoiMinHeight = 0.1f;
+    public float voronoiMaxHeight = 0.5f;
+    public enum VoronoiType {  Linear = 0, Power = 1, Combined =2, SinPow = 3}
+    public VoronoiType voronoiType = VoronoiType.Linear;
 
     public List<PerlinParamters> perlinParamters = new List<PerlinParamters>() {
         new PerlinParamters()
@@ -225,25 +233,92 @@ public class CustomTerrain : MonoBehaviour
     public void Voronoi() {
 
         float[,] heightMap = GetHeightMap();
-        float fallOff = 0.5f;
-        Vector3 peak = new Vector3(UnityEngine.Random.Range(0, terrainData.heightmapWidth),
-                                   UnityEngine.Random.Range(0.0f, 1.0f),
-                                   UnityEngine.Random.Range(0, terrainData.heightmapHeight)); //random location on the map
-        heightMap[(int)peak.x, (int)peak.z] = peak.y;
 
-        Vector2 peakLocation = new Vector2(peak.x, peak.z);
-        float maxDistance = Vector2.Distance(new Vector2(0, 0), new Vector2(terrainData.heightmapWidth, terrainData.heightmapHeight)); //distance from corner to corner
+        for (int p = 0; p < voronoiPeakCount; p++) {
+            Vector3 peak = new Vector3(UnityEngine.Random.Range(0, terrainData.heightmapWidth),
+                                       UnityEngine.Random.Range(voronoiMinHeight, voronoiMaxHeight),
+                                       UnityEngine.Random.Range(0, terrainData.heightmapHeight)); //random location on the map
+          
 
-        for(int y = 0; y < terrainData.heightmapHeight; y++) {
-            for (int x = 0; x < terrainData.heightmapWidth; x++) {
-                if(!(x == peak.x && y == peak.z)) { // not at the peak
-                    float distanceToPeak = Vector2.Distance(peakLocation, new Vector2(x, y)) * fallOff;
-                    heightMap[x, y] = peak.y - (distanceToPeak / maxDistance); // increases height around the map by its proximity to the peak
-                }
+            if(heightMap[(int)peak.x, (int)peak.z] < peak.y) {
+                heightMap[(int)peak.x, (int)peak.z] = peak.y;
+            }
+            else {
+                continue;
             }
 
+            Vector2 peakLocation = new Vector2(peak.x, peak.z);
+            float maxDistance = Vector2.Distance(new Vector2(0, 0), new Vector2(terrainData.heightmapWidth, terrainData.heightmapHeight)); //distance from corner to corner
+
+            for (int y = 0; y < terrainData.heightmapHeight; y++) {
+                for (int x = 0; x < terrainData.heightmapWidth; x++) {
+                    if (!(x == peak.x && y == peak.z)) { // not at the peak
+                        float distanceToPeak = Vector2.Distance(peakLocation, new Vector2(x, y)) / maxDistance;
+                        float h;
+
+                        if (voronoiType == VoronoiType.Combined) {
+                            h = peak.y - distanceToPeak * voronoiFallOff - Mathf.Pow(distanceToPeak, voronoiDropOff); // Combined
+                        }
+                        else if (voronoiType == VoronoiType.Power) {
+
+                            h = peak.y - Mathf.Pow(distanceToPeak, voronoiDropOff) * voronoiFallOff; // Power
+                        }
+                        else if(voronoiType == VoronoiType.SinPow) {
+                            h = peak.y - Mathf.Pow(distanceToPeak * 3, voronoiFallOff) - Mathf.Sin(distanceToPeak * 2 * Mathf.PI) / voronoiDropOff; //sin pow
+                        }
+                        else {
+                            h = peak.y - distanceToPeak * voronoiFallOff; // Linear
+                        }
+
+                        if (heightMap[x, y] < h) {
+                            heightMap[x, y] = h;
+                        } 
+
+                    }
+                }
+
+            }
         }
         terrainData.SetHeights(0, 0, heightMap);
     }
-    
+
+    public void MidPointDisplacement() {
+        float[,] heightMap = GetHeightMap();
+        int width = terrainData.heightmapWidth - 1;
+        int squareSize = width;
+        float height = (float)squareSize / 2.0f * 0.01f;
+        float roughness = 2.0f;
+        float heightDampener = (float)Mathf.Pow(2, -1 * roughness);
+
+        int cornerX, cornerY;
+        int midX, midY;
+        int pmidXL, pmidXR, pmidYU, pmidYD;
+
+        heightMap[0, 0] = UnityEngine.Random.Range(0f, 0.2f);
+        heightMap[0, terrainData.heightmapHeight - 2] = UnityEngine.Random.Range(0f, 0.2f);
+        heightMap[terrainData.heightmapWidth - 2, 0] = UnityEngine.Random.Range(0f, 0.2f);
+        heightMap[terrainData.heightmapHeight - 2, terrainData.heightmapWidth - 2] = UnityEngine.Random.Range(0f, 0.2f); // Assign heights to corners of terrain
+        while (squareSize > 0) {
+            for (int x = 0; x < width; x += squareSize) {
+                for (int y = 0; y < width; y += squareSize) {
+                    cornerX = (x + squareSize);
+                    cornerY = (y + squareSize);
+
+                    midX = (int)(x + squareSize / 2.0f);
+                    midY = (int)(y + squareSize / 2.0f);
+
+                    heightMap[midX, midY] = (float)((heightMap[x, y] +
+                                                     heightMap[cornerX, y] +
+                                                     heightMap[x, cornerY] +
+                                                     heightMap[cornerX, cornerY]) / 4.0f + 
+                                                     UnityEngine.Random.Range(-height, height));
+                }
+            }
+            squareSize = (int)(squareSize / 2.0f);
+            height *= heightDampener;
+        }
+        terrainData.SetHeights(0, 0, heightMap);
+
+    }
+  
 }
