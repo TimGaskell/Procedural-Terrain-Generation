@@ -341,6 +341,11 @@ MonoBehaviour:
   voronoiDropOff: 6.13
   voronoiMinHeight: 0.139
   voronoiMaxHeight: 0.461
+  MPHeightMin: -10
+  MPHeightMax: 5
+  MPHeightDampernerPower: 2
+  MPRoughness: 2.04
+  SmoothAmount: 2
   voronoiType: 3
   perlinParamters:
   - mPerlinXScale: 0.01

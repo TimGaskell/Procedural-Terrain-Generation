@@ -42,6 +42,17 @@ public class CustomTerrain : MonoBehaviour
     public float voronoiDropOff = 0.6f;
     public float voronoiMinHeight = 0.1f;
     public float voronoiMaxHeight = 0.5f;
+
+    //MIDPOINT -------------------
+    public float MPHeightMin = -5;
+    public float MPHeightMax = 5;
+    public float MPHeightDampernerPower = 2;
+    public float MPRoughness = 2;
+
+    //SMOOTH
+    public int SmoothAmount = 1;
+
+
     public enum VoronoiType {  Linear = 0, Power = 1, Combined =2, SinPow = 3}
     public VoronoiType voronoiType = VoronoiType.Linear;
 
@@ -282,22 +293,26 @@ public class CustomTerrain : MonoBehaviour
         terrainData.SetHeights(0, 0, heightMap);
     }
 
+    /// <summary>
+    /// Generates a terrain by taking mid points for each position on the hex and lifting it along with its mid points
+    /// </summary>
     public void MidPointDisplacement() {
         float[,] heightMap = GetHeightMap();
         int width = terrainData.heightmapWidth - 1;
         int squareSize = width;
-        float height = (float)squareSize / 2.0f * 0.01f;
-        float roughness = 2.0f;
-        float heightDampener = (float)Mathf.Pow(2, -1 * roughness);
+        float heightMin = MPHeightMin;
+        float heightMax = MPHeightMax;
+        float heightDampener = (float)Mathf.Pow(MPHeightDampernerPower, -1 * MPRoughness);
 
         int cornerX, cornerY;
         int midX, midY;
         int pmidXL, pmidXR, pmidYU, pmidYD;
 
-        heightMap[0, 0] = UnityEngine.Random.Range(0f, 0.2f);
+        /*heightMap[0, 0] = UnityEngine.Random.Range(0f, 0.2f);
         heightMap[0, terrainData.heightmapHeight - 2] = UnityEngine.Random.Range(0f, 0.2f);
         heightMap[terrainData.heightmapWidth - 2, 0] = UnityEngine.Random.Range(0f, 0.2f);
-        heightMap[terrainData.heightmapHeight - 2, terrainData.heightmapWidth - 2] = UnityEngine.Random.Range(0f, 0.2f); // Assign heights to corners of terrain
+        heightMap[terrainData.heightmapHeight - 2, terrainData.heightmapWidth - 2] = UnityEngine.Random.Range(0f, 0.2f); // Assign heights to corners of terrain */
+       
         while (squareSize > 0) {
             for (int x = 0; x < width; x += squareSize) {
                 for (int y = 0; y < width; y += squareSize) {
@@ -311,14 +326,116 @@ public class CustomTerrain : MonoBehaviour
                                                      heightMap[cornerX, y] +
                                                      heightMap[x, cornerY] +
                                                      heightMap[cornerX, cornerY]) / 4.0f + 
-                                                     UnityEngine.Random.Range(-height, height));
+                                                     UnityEngine.Random.Range(heightMin, heightMax));
                 }
             }
+            for (int x = 0; x < width; x += squareSize) { 
+                 for(int y = 0; y < width; y += squareSize) {
+
+                    cornerX = (x + squareSize);
+                    cornerY = (y + squareSize);
+
+                    midX = (int)(x + squareSize / 2.0f);
+                    midY = (int)(y + squareSize / 2.0f);
+
+                    pmidXR = (int)(midX + squareSize);
+                    pmidYU = (int)(midY + squareSize);
+                    pmidXL = (int)(midX - squareSize);
+                    pmidYD = (int)(midY - squareSize);
+
+                    if(pmidXL <= 0 || pmidYD <=0 || pmidXR >= width -1 || pmidYU >= width - 1) {
+                        continue;
+                    }
+
+                    //Calculate the square value for the bottom side
+                    heightMap[midX, y] = (float)((heightMap[midX, midY] +
+                                                 heightMap[x, y] +
+                                                 heightMap[midX, pmidYD] +
+                                                 heightMap[cornerX, y]) / 4.0f +
+                                                 UnityEngine.Random.Range(heightMin, heightMax));
+
+                    //Calculate the square value for the top side
+                    heightMap[midX, cornerY] = (float)((heightMap[x, cornerY] +
+                                                 heightMap[midX, midY] +
+                                                 heightMap[cornerX, cornerY] +
+                                                 heightMap[midX, pmidYU]) / 4.0f +
+                                                 UnityEngine.Random.Range(heightMin, heightMax));
+
+                    //Calculate the square value for the left side
+                    heightMap[x, midY] = (float)((heightMap[x, y] +
+                                                 heightMap[pmidXL, midY] +
+                                                 heightMap[x, cornerY] +
+                                                 heightMap[midX, midY]) / 4.0f +
+                                                 UnityEngine.Random.Range(heightMin, heightMax));
+
+                    //Calculate the square value for the right side
+                    heightMap[cornerX, midY] = (float)((heightMap[cornerX, y] +
+                                                 heightMap[midX, midY] +
+                                                 heightMap[cornerX, cornerY] +
+                                                 heightMap[pmidXR, midY]) / 4.0f +
+                                                 UnityEngine.Random.Range(heightMin, heightMax));
+
+                }
+            
+            }
             squareSize = (int)(squareSize / 2.0f);
-            height *= heightDampener;
+            heightMin *= heightDampener;
+            heightMax *= heightDampener;
         }
         terrainData.SetHeights(0, 0, heightMap);
-
     }
-  
+
+    /// <summary>
+    /// Smooths out a terrain by averaging the height of a point by the surrounding points.
+    /// </summary>
+    public void Smooth() {
+
+        float[,] heightMap = GetHeightMap();
+        float smoothProgress = 0;
+        EditorUtility.DisplayProgressBar("Smoothing Terrain", "Progress", smoothProgress / SmoothAmount);
+
+        for (int i = 0; i < SmoothAmount; i++) {
+            for (int y = 0; y < terrainData.heightmapHeight; y++) {
+                for (int x = 0; x < terrainData.heightmapWidth; x++) {
+
+                    float avgHeight = heightMap[x, y];
+                    List<Vector2> neighbours = GenerateNeighbours(new Vector2(x, y), terrainData.heightmapWidth, terrainData.heightmapHeight);
+
+                    foreach (Vector2 n in neighbours) {
+                        avgHeight += heightMap[(int)n.x, (int)n.y];
+                    }
+                    heightMap[x, y] = avgHeight / ((float)neighbours.Count + 1);
+                }
+            }
+            smoothProgress++;
+            EditorUtility.DisplayProgressBar("Smoothing Terrain", "Progress", smoothProgress / SmoothAmount);
+        }
+        terrainData.SetHeights(0, 0, heightMap);
+        EditorUtility.ClearProgressBar();
+    }
+
+    /// <summary>
+    /// Generates a list of neighboring points on the terrain. Checks if the point is on the edge of the terrain. 
+    /// </summary>
+    /// <param name="Pos"> terrain position, x , y</param>
+    /// <param name="width"> Width of terrain </param>
+    /// <param name="height"> Height of terrain </param>
+    /// <returns> List of surrounding points of that point </returns>
+    List<Vector2> GenerateNeighbours(Vector2 Pos, int width, int height) {
+        List<Vector2> neighbours = new List<Vector2>();
+
+        for(int y = - 1; y< 2; y++) {
+            for(int x = - 1; x < 2; x++) {
+
+                if(!(x==0 && y == 0)) {
+                    Vector2 nPos = new Vector2(Mathf.Clamp(Pos.x + x, 0, width - 1), Mathf.Clamp(Pos.y + y, 0, height - 1));
+                    if (!neighbours.Contains(nPos)) {
+                        neighbours.Add(nPos);
+                    }
+                }
+            }
+        }
+        return neighbours;
+    }
+ 
 }

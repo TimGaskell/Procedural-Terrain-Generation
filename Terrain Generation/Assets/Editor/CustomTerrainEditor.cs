@@ -26,6 +26,11 @@ public class CustomTerrainEditor : Editor
     SerializedProperty voronoiMinHeight;
     SerializedProperty voronoiMaxHeight;
     SerializedProperty voronoiType;
+    SerializedProperty MPHeightMin;
+    SerializedProperty MPHeightMax;
+    SerializedProperty MPHeightDampenerPower;
+    SerializedProperty MPRoughness;
+    SerializedProperty SmoothAmount;
 
     GUITableState perlinParameterTable;
     SerializedProperty perlinParameters;
@@ -38,6 +43,7 @@ public class CustomTerrainEditor : Editor
     bool showMultiplePerlin = false;
     bool showVoroni = false;
     bool showMidPointDisplacement = false;
+    bool showSmooth = false;
 
     private void OnEnable() {
 
@@ -60,6 +66,11 @@ public class CustomTerrainEditor : Editor
         voronoiMinHeight = serializedObject.FindProperty("voronoiMinHeight");
         voronoiMaxHeight = serializedObject.FindProperty("voronoiMaxHeight");
         voronoiType = serializedObject.FindProperty("voronoiType");
+        MPHeightMin = serializedObject.FindProperty("MPHeightMin");
+        MPHeightMax = serializedObject.FindProperty("MPHeightMax");
+        MPHeightDampenerPower = serializedObject.FindProperty("MPHeightDampernerPower");
+        MPRoughness = serializedObject.FindProperty("MPRoughness");
+        SmoothAmount = serializedObject.FindProperty("SmoothAmount");
     }
 
     /// <summary>
@@ -142,7 +153,7 @@ public class CustomTerrainEditor : Editor
 
         showVoroni = EditorGUILayout.Foldout(showVoroni, "Voronoi");
 
-        // Items included in the folout for generating a Voronoi mountain on the terrain
+        // Items included in the foldout for generating a Voronoi mountain on the terrain
         if (showVoroni) {
             EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
             EditorGUILayout.IntSlider(voronoiPeakCount, 1, 10, new GUIContent("Peak Count"));
@@ -152,7 +163,6 @@ public class CustomTerrainEditor : Editor
             EditorGUILayout.Slider(voronoiMaxHeight, 0, 1, new GUIContent("Max Height"));
             EditorGUILayout.PropertyField(voronoiType);
 
-
             if (GUILayout.Button("Voronoi")) {
                 terrain.Voronoi();
             }
@@ -161,12 +171,27 @@ public class CustomTerrainEditor : Editor
 
         showMidPointDisplacement = EditorGUILayout.Foldout(showMidPointDisplacement, "Mid Point Displacement");
 
-        // Items included in the folout for generating a Mid point displacement mountain on the terrain
+        // Items included in the foldout for generating a Mid point displacement mountain on the terrain
         if (showMidPointDisplacement) {
             EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            EditorGUILayout.PropertyField(MPHeightMin);
+            EditorGUILayout.PropertyField(MPHeightMax);
+            EditorGUILayout.PropertyField(MPHeightDampenerPower);
+            EditorGUILayout.PropertyField(MPRoughness);
 
             if (GUILayout.Button("Mid Point Displacement")) {
                 terrain.MidPointDisplacement();
+            }
+        }
+
+        showSmooth = EditorGUILayout.Foldout(showSmooth, "Smooth Terrain");
+
+        // Items included in the foldout for generating Smoother terrain
+        if (showSmooth) {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            EditorGUILayout.IntSlider(SmoothAmount, 1, 10, new GUIContent("Smooth Amount"));
+            if (GUILayout.Button("Smooth")) {
+                terrain.Smooth();
             }
         }
 
