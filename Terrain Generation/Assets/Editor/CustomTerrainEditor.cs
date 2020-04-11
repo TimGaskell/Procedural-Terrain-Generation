@@ -35,6 +35,10 @@ public class CustomTerrainEditor : Editor
     GUITableState perlinParameterTable;
     SerializedProperty perlinParameters;
 
+    GUITableState splatMapTable;
+    SerializedProperty splatHeights;
+
+
 
     //Fold Outs ------
     bool showRandom = false;
@@ -44,6 +48,7 @@ public class CustomTerrainEditor : Editor
     bool showVoroni = false;
     bool showMidPointDisplacement = false;
     bool showSmooth = false;
+    bool showSplatMaps = false;
 
     private void OnEnable() {
 
@@ -71,16 +76,28 @@ public class CustomTerrainEditor : Editor
         MPHeightDampenerPower = serializedObject.FindProperty("MPHeightDampernerPower");
         MPRoughness = serializedObject.FindProperty("MPRoughness");
         SmoothAmount = serializedObject.FindProperty("SmoothAmount");
+        splatMapTable = new GUITableState("splatMapTable");
+        splatHeights = serializedObject.FindProperty("splatHeights");
+
     }
 
     /// <summary>
     /// Method used for creating a modified Unity Editor. Linked to Custom Terrain (Shown up top)
     /// </summary>
+
+    Vector2 scrollPos;
     public override void OnInspectorGUI() {
 
         serializedObject.Update();
 
         CustomTerrain terrain = (CustomTerrain)target;
+
+        //ScrollBar Starting code
+        Rect r = EditorGUILayout.BeginVertical();
+        scrollPos = EditorGUILayout.BeginScrollView(scrollPos, GUILayout.Width(r.width), GUILayout.Height(r.height));
+        EditorGUI.indentLevel++;
+        
+
         EditorGUILayout.PropertyField(resetTerrain);
 
         showRandom = EditorGUILayout.Foldout(showRandom, "Random");
@@ -156,6 +173,7 @@ public class CustomTerrainEditor : Editor
         // Items included in the foldout for generating a Voronoi mountain on the terrain
         if (showVoroni) {
             EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Voronoi", EditorStyles.boldLabel);
             EditorGUILayout.IntSlider(voronoiPeakCount, 1, 10, new GUIContent("Peak Count"));
             EditorGUILayout.Slider(voronoiFallOff, 0, 10, new GUIContent("Fall off"));
             EditorGUILayout.Slider(voronoiDropOff, 0, 10, new GUIContent("Drop off"));
@@ -174,6 +192,7 @@ public class CustomTerrainEditor : Editor
         // Items included in the foldout for generating a Mid point displacement mountain on the terrain
         if (showMidPointDisplacement) {
             EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("MidPoint Displacement", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(MPHeightMin);
             EditorGUILayout.PropertyField(MPHeightMax);
             EditorGUILayout.PropertyField(MPHeightDampenerPower);
@@ -189,10 +208,38 @@ public class CustomTerrainEditor : Editor
         // Items included in the foldout for generating Smoother terrain
         if (showSmooth) {
             EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Smooth Terrain", EditorStyles.boldLabel);
             EditorGUILayout.IntSlider(SmoothAmount, 1, 10, new GUIContent("Smooth Amount"));
             if (GUILayout.Button("Smooth")) {
                 terrain.Smooth();
             }
+        }
+
+
+        showSplatMaps = EditorGUILayout.Foldout(showSplatMaps, "Splat Maps");
+
+        // Items included in the foldout for generating SplatMap Textures for terrain
+        if (showSplatMaps) {
+
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Splat Map", EditorStyles.boldLabel);
+
+            splatMapTable = GUITableLayout.DrawTable(splatMapTable, splatHeights);      
+
+            GUILayout.Space(20);
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("+")) {
+                terrain.AddNewSplatHeight();
+            }
+            if (GUILayout.Button("-")) {
+                terrain.RemoveSplatHeight();
+            }
+            EditorGUILayout.EndHorizontal();
+            if (GUILayout.Button("Apply SplatMaps")) {
+
+                terrain.SplatMaps();
+            }
+
         }
 
         // Creates the reset button
@@ -201,6 +248,11 @@ public class CustomTerrainEditor : Editor
         if (GUILayout.Button("Reset Terrain")) { 
             terrain.ResetTerrain();
         }
+
+
+        //Scrollbar ending code
+        EditorGUILayout.EndScrollView();
+        EditorGUILayout.EndVertical();
 
         serializedObject.ApplyModifiedProperties();
     }

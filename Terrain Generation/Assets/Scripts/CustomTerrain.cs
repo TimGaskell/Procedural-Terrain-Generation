@@ -52,6 +52,25 @@ public class CustomTerrain : MonoBehaviour
     //SMOOTH
     public int SmoothAmount = 1;
 
+    //SPLAT MAPS ---------------------
+    [System.Serializable]
+    public class SplatHeights {
+        public Texture2D texture = null;
+        public float minHeight = 0.1f;
+        public float maxHeight = 0.2f;
+        public Vector2 tileOffset = new Vector2(0, 0);
+        public Vector2 tileSize = new Vector2(50, 50);
+        public float SplatOffSet = 0.1f;
+        public float SplatNoiseXScale = 0.01f;
+        public float SplatNoiseYScale = 0.01f;
+        public float SplatNoiseScalar = 0.1f;
+        public bool remove = false;
+    }
+
+    public List<SplatHeights> splatHeights = new List<SplatHeights>() {
+        new SplatHeights()
+    };
+
 
     public enum VoronoiType {  Linear = 0, Power = 1, Combined =2, SinPow = 3}
     public VoronoiType voronoiType = VoronoiType.Linear;
@@ -437,5 +456,96 @@ public class CustomTerrain : MonoBehaviour
         }
         return neighbours;
     }
- 
+
+    /// <summary>
+    /// Adds a Texture plus texture information into the splat heights list
+    /// </summary>
+    public void AddNewSplatHeight() {
+        splatHeights.Add(new SplatHeights());
+    }
+
+    /// <summary>
+    /// Removes a specific splat heights item if they have its remove bool checked
+    /// </summary>
+    public void RemoveSplatHeight() {
+
+        List<SplatHeights> keptSplatHeights = new List<SplatHeights>();
+        for(int i =0; i< splatHeights.Count; i++) {
+            if (!splatHeights[i].remove) {
+                keptSplatHeights.Add(splatHeights[i]);
+            }
+        }
+
+        if(keptSplatHeights.Count == 0) {
+            keptSplatHeights.Add(splatHeights[0]); // add at least 1
+        }
+        splatHeights = keptSplatHeights;
+    }
+
+    /// <summary>
+    /// Creates terrain layers for textures to be placed on the map. Places textures based on the height of the terrain
+    /// </summary>
+    public void SplatMaps() {
+        TerrainLayer[] newSplatPrototype;
+        newSplatPrototype = new TerrainLayer[splatHeights.Count];
+        int spIndex = 0;
+        foreach (SplatHeights sh in splatHeights) { //Generates terrain layer textures in the assets folder. Used to color terrain further on
+            newSplatPrototype[spIndex] = new TerrainLayer();
+            newSplatPrototype[spIndex].diffuseTexture = sh.texture;
+            newSplatPrototype[spIndex].tileOffset = sh.tileOffset;
+            newSplatPrototype[spIndex].tileSize = sh.tileSize;
+            newSplatPrototype[spIndex].diffuseTexture.Apply(true);
+            string path = "Assets/New Terrain Layer " + spIndex + ".terrainLayer";
+            AssetDatabase.CreateAsset(newSplatPrototype[spIndex], path);
+            spIndex++;
+            Selection.activeObject = this.gameObject;
+        }
+
+        terrainData.terrainLayers = newSplatPrototype;
+        float[,] heightMap = terrainData.GetHeights(0, 0, terrainData.heightmapResolution, terrainData.heightmapResolution);
+        float[,,] splatMapData = new float[terrainData.alphamapHeight, terrainData.alphamapWidth, terrainData.alphamapLayers];
+
+        for(int y = 0; y < terrainData.alphamapHeight; y++) {
+            for(int x = 0; x < terrainData.alphamapWidth; x++) {
+
+                float[] splat = new float[terrainData.alphamapLayers];
+                //Determines if a texture is used at a specific height. If multiple fall at the same height, they are equally blended together
+                for(int i =0; i < splatHeights.Count; i++) {
+
+                    float noise = Mathf.PerlinNoise(x * splatHeights[i].SplatNoiseXScale, y * splatHeights[i].SplatNoiseYScale) * splatHeights[i].SplatNoiseScalar;
+                    float offset = splatHeights[i].SplatOffSet + noise;
+
+                    float thisHeightStart = splatHeights[i].minHeight - offset;
+                    float thisHeightStop = splatHeights[i].maxHeight + offset;
+                    if((heightMap[x,y] >= thisHeightStart && heightMap[x,y] <= thisHeightStop)) {
+                        splat[i] = 1;
+                    }
+                }
+                NormalizeVector(splat);
+                for(int j = 0; j < splatHeights.Count; j++) {
+                    splatMapData[x, y, j] = splat[j];
+                }
+
+            }
+        }
+        terrainData.SetAlphamaps(0, 0, splatMapData);
+    }
+
+    /// <summary>
+    /// Normalizes an array of vectors.
+    /// </summary>
+    /// <param name="v"> Array of Vectors </param>
+    void NormalizeVector(float[] v) {
+        float total = 0;
+
+        for(int i = 0; i < v.Length; i++) {
+            total += v[i];
+        }
+        for(int i = 0; i < v.Length; i++) {
+            v[i] /= total;
+        }
+    }
+
+
+
 }
