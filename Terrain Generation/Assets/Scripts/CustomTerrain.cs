@@ -58,6 +58,8 @@ public class CustomTerrain : MonoBehaviour
         public Texture2D texture = null;
         public float minHeight = 0.1f;
         public float maxHeight = 0.2f;
+        public float minSlope = 0;
+        public float maxSlope = 1.5f;
         public Vector2 tileOffset = new Vector2(0, 0);
         public Vector2 tileSize = new Vector2(50, 50);
         public float SplatOffSet = 0.1f;
@@ -508,16 +510,24 @@ public class CustomTerrain : MonoBehaviour
         for(int y = 0; y < terrainData.alphamapHeight; y++) {
             for(int x = 0; x < terrainData.alphamapWidth; x++) {
 
-                float[] splat = new float[terrainData.alphamapLayers];
-                //Determines if a texture is used at a specific height. If multiple fall at the same height, they are equally blended together
+                float[] splat = new float[terrainData.alphamapLayers];                
                 for(int i =0; i < splatHeights.Count; i++) {
 
                     float noise = Mathf.PerlinNoise(x * splatHeights[i].SplatNoiseXScale, y * splatHeights[i].SplatNoiseYScale) * splatHeights[i].SplatNoiseScalar;
                     float offset = splatHeights[i].SplatOffSet + noise;
 
+                    //Sets the height ranges for texture of where it can be placed.
                     float thisHeightStart = splatHeights[i].minHeight - offset;
                     float thisHeightStop = splatHeights[i].maxHeight + offset;
-                    if((heightMap[x,y] >= thisHeightStart && heightMap[x,y] <= thisHeightStop)) {
+
+                    // Another way to manually get the steepness of the terrain based on its neighbors; 
+                    //float steepness = GetSteepness(heightMap, x, y, terrainData.heightmapWidth, terrainData.heightmapHeight); 
+
+                    //Sets the steepness of the terrain. Used for texturing based if steepness is too great
+                    float steepness = terrainData.GetSteepness(y / (float)terrainData.alphamapHeight, x / (float)terrainData.alphamapWidth);
+
+                    if((heightMap[x,y] >= thisHeightStart && heightMap[x,y] <= thisHeightStop)&&
+                        (steepness >= splatHeights[i].minSlope && steepness <= splatHeights[i].maxSlope)) {
                         splat[i] = 1;
                     }
                 }
@@ -529,6 +539,40 @@ public class CustomTerrain : MonoBehaviour
             }
         }
         terrainData.SetAlphamaps(0, 0, splatMapData);
+    }
+
+    /// <summary>
+    /// Gets the gradient between a current point and its neighboring point by (x+1,y) and (x,y+1)
+    /// </summary>
+    /// <param name="heightmap"> Current height map array </param>
+    /// <param name="x"> x coordinate on height map</param>
+    /// <param name="y"> y coordinate on height map</param>
+    /// <param name="width"> Width of height map</param>
+    /// <param name="height"> Height of height map</param>
+    /// <returns></returns>
+    float GetSteepness( float[,] heightmap, int x, int y, int width, int height) {
+
+        float h = heightmap[x, y];
+        int nx = x + 1;
+        int ny = y + 1;
+
+        //if on the upper edge of the map find gradient by going backward;
+        if(nx > width - 1) {
+            nx = x - 1;
+        }
+        if(ny > height -1) {
+            ny = y - 1;
+        }
+
+        float dx = heightmap[nx, y] - h;
+        float dy = heightmap[x, ny] - h;
+        Vector2 gradient = new Vector2(dx, dy);
+
+        float steep = gradient.magnitude;
+
+        return steep;
+
+
     }
 
     /// <summary>
