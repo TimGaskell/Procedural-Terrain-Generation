@@ -20,6 +20,9 @@ public class TextureCreatorWindow : EditorWindow
     bool seamlessToggle = false;
     bool mapToggle = false;
 
+    float brightness = 0.5f;
+    float contrast = 0.5f;
+
     Texture2D pTexture;
   
     [MenuItem("Window/TextureCreatorWindow")]
@@ -46,12 +49,17 @@ public class TextureCreatorWindow : EditorWindow
         perlinHeightScale = EditorGUILayout.Slider("Height Scale", perlinHeightScale, 0, 1);
         perlinOffsetX = EditorGUILayout.IntSlider("Offset X", perlinOffsetX, 0, 10000);
         perlinOffsetY = EditorGUILayout.IntSlider("Offset Y", perlinOffsetY, 0, 10000);
+        brightness = EditorGUILayout.Slider("Brightness", brightness, 0, 2);
+        contrast = EditorGUILayout.Slider("Contrast", contrast, 0, 2);
         alphaToggle = EditorGUILayout.Toggle("Alpha?", alphaToggle);
         mapToggle = EditorGUILayout.Toggle("Map?", mapToggle);
         seamlessToggle = EditorGUILayout.Toggle("Seamless", seamlessToggle);
 
         GUILayout.BeginHorizontal();
         GUILayout.FlexibleSpace();
+
+        float minColor = 1;
+        float maxColor = 0;
 
         // Button responsible for generating the noise texture
         if (GUILayout.Button("Generate", GUILayout.Width(wSize))) {
@@ -103,12 +111,34 @@ public class TextureCreatorWindow : EditorWindow
                                              perlinOctaves,
                                              perlinPersistance) * perlinHeightScale;              
                     }
-                    float colValue = pValue;
+                    float colValue = contrast * (pValue - 0.5f) + 0.5f * brightness;
+                    if(minColor > colValue) {
+                        minColor = colValue;
+                    }
+                    if(maxColor < colValue) {
+                        maxColor = colValue;
+                    }
+
                     pixCol = new Color(colValue, colValue, colValue, alphaToggle ? colValue : 1);
                     pTexture.SetPixel(x, y, pixCol);
                 }
 
             }
+            if (mapToggle) {
+                for (int y = 0; y < h; y++) { 
+                    for(int x =0; x <w; x++) {
+                        pixCol = pTexture.GetPixel(x, y);
+                        float colValue = pixCol.r;
+                        colValue = Utility.Map(colValue, minColor, maxColor, 0, 1);
+                        pixCol.r = colValue;
+                        pixCol.g = colValue;
+                        pixCol.b = colValue;
+                        pTexture.SetPixel(x, y, pixCol);
+                    }
+                
+                }
+            }
+
             pTexture.Apply(false, false);
         }
 

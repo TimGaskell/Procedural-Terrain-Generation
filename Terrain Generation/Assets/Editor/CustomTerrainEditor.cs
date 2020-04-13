@@ -38,6 +38,11 @@ public class CustomTerrainEditor : Editor
     GUITableState splatMapTable;
     SerializedProperty splatHeights;
 
+    GUITableState vegetationTable;
+    SerializedProperty vegatation;
+    SerializedProperty maxTrees;
+    SerializedProperty treeSpacing;
+
 
 
     //Fold Outs ------
@@ -49,6 +54,11 @@ public class CustomTerrainEditor : Editor
     bool showMidPointDisplacement = false;
     bool showSmooth = false;
     bool showSplatMaps = false;
+    bool showHeights = false;
+    bool showVegetation = false;
+
+
+    Texture2D hmTexture;
 
     private void OnEnable() {
 
@@ -78,6 +88,11 @@ public class CustomTerrainEditor : Editor
         SmoothAmount = serializedObject.FindProperty("SmoothAmount");
         splatMapTable = new GUITableState("splatMapTable");
         splatHeights = serializedObject.FindProperty("splatHeights");
+        hmTexture = new Texture2D(513, 513, TextureFormat.ARGB32, false);
+        vegetationTable = new GUITableState("VegatationTable");
+        vegatation = serializedObject.FindProperty("vegetation");
+        maxTrees = serializedObject.FindProperty("maxTrees");
+        treeSpacing = serializedObject.FindProperty("treeSpacing");
 
     }
 
@@ -241,6 +256,67 @@ public class CustomTerrainEditor : Editor
             }
 
         }
+
+
+        showHeights = EditorGUILayout.Foldout(showHeights, "Height Map");
+
+        //Items included in the foldout for generating a height map of the current terrain.
+        if (showHeights) {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Current Height Map", EditorStyles.boldLabel);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            int hmtSize = (int)(EditorGUIUtility.currentViewWidth - 100);
+            GUILayout.Label(hmTexture, GUILayout.Width(hmtSize), GUILayout.Height(hmtSize));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Refresh", GUILayout.Width(hmtSize))){
+                float[,] heightMap = terrain.terrainData.GetHeights(0, 0, terrain.terrainData.heightmapWidth, terrain.terrainData.heightmapHeight);
+
+                for (int y = 0; y < terrain.terrainData.heightmapHeight; y++) {
+                    for (int x = 0; x < terrain.terrainData.heightmapWidth; x++) {
+                        hmTexture.SetPixel(x, y, new Color(heightMap[x, y], heightMap[x, y], heightMap[x, y], 1));
+                    }
+                }
+                hmTexture.Apply();
+            }
+           
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+        }
+
+        showVegetation = EditorGUILayout.Foldout(showVegetation, "Vegetation");
+
+        //Itmes included in the foldout for generating the tree vegetation on the terrain
+        if (showVegetation) {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Vegetation", EditorStyles.boldLabel);
+            EditorGUILayout.IntSlider(maxTrees, 0, 10000, new GUIContent("Maximum Trees"));
+            EditorGUILayout.IntSlider(treeSpacing, 2, 20, new GUIContent("Tree Spacing"));
+            vegetationTable = GUITableLayout.DrawTable(vegetationTable, vegatation);
+
+            GUILayout.Space(20);
+            EditorGUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("+")) {
+                terrain.AddNewVegetation();
+            }
+            if (GUILayout.Button("-")) {
+                terrain.RemoveVegetation();
+            }
+            EditorGUILayout.EndHorizontal();
+            if (GUILayout.Button("Apply Vegetation")) {
+
+                terrain.plantVegetation();
+            }
+
+
+        }
+    
 
         // Creates the reset button
         EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
