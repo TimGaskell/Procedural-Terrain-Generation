@@ -167,17 +167,63 @@ MonoBehaviour:
   voronoiDropOff: 0.6
   voronoiMinHeight: 0.1
   voronoiMaxHeight: 0.5
+  voronoiType: 0
+  perlinParamters:
+  - mPerlinXScale: 0.01
+    mPerlinYScale: 0.01
+    mPerlinOctaves: 3
+    mPerlinPersistance: 8
+    mPerlinHeighScale: 0.09
+    mPerlinOffsetX: 0
+    mPerlinOffsetY: 0
+    remove: 0
   MPHeightMin: -5
   MPHeightMax: 5
   MPHeightDampernerPower: 2
   MPRoughness: 2
   SmoothAmount: 1
   splatHeights:
-  - texture: {fileID: 0}
-    minHeight: 0.1
+  - texture: {fileID: 2800000, guid: 69930cb68b9e44a93877a4fd343b0e89, type: 3}
+    minHeight: 0
     maxHeight: 0.2
     minSlope: 0
-    maxSlope: 1.5
+    maxSlope: 75
+    tileOffset: {x: 0, y: 0}
+    tileSize: {x: 25, y: 25}
+    SplatOffSet: 0.1
+    SplatNoiseXScale: 0.01
+    SplatNoiseYScale: 0.01
+    SplatNoiseScalar: 0.1
+    remove: 0
+  - texture: {fileID: 2800000, guid: dd49ed99f55924d13bacefd240626bc5, type: 3}
+    minHeight: 0
+    maxHeight: 0.3
+    minSlope: 0
+    maxSlope: 25
+    tileOffset: {x: 0, y: 0}
+    tileSize: {x: 50, y: 50}
+    SplatOffSet: 0.1
+    SplatNoiseXScale: 0.01
+    SplatNoiseYScale: 0.01
+    SplatNoiseScalar: 0.1
+    remove: 0
+  - texture: {fileID: 2800000, guid: 6f7916404ed2e49fda737e69e8f3bc69, type: 3}
+    minHeight: 0.1
+    maxHeight: 1
+    minSlope: 10
+    maxSlope: 90
+    tileOffset: {x: 0, y: 0}
+    tileSize: {x: 50, y: 50}
+    SplatOffSet: 0.1
+    SplatNoiseXScale: 0.01
+    SplatNoiseYScale: 0.01
+    SplatNoiseScalar: 0.1
+    remove: 0
+  - texture: {fileID: 2800000, guid: 004b783a095f74e7196db2e1a3a6c2d8, type: 3}
+    minHeight: 0.2
+    maxHeight: 0.5
+    minSlope: 25
+    maxSlope: 90
     tileOffset: {x: 0, y: 0}
     tileSize: {x: 50, y: 50}
     SplatOffSet: 0.1
@@ -216,16 +262,40 @@ MonoBehaviour:
     remove: 0
   maxTrees: 7104
   treeSpacing: 14
-  voronoiType: 0
-  perlinParamters:
-  - mPerlinXScale: 0.01
-    mPerlinYScale: 0.01
-    mPerlinOctaves: 3
-    mPerlinPersistance: 8
-    mPerlinHeighScale: 0.09
-    mPerlinOffsetX: 0
-    mPerlinOffsetY: 0
+  details:
+  - prototype: {fileID: -927199367670048503, guid: 8e41f14c6552d48e6a7992aaecc808e4,
+      type: 3}
+    prototypeTexture: {fileID: 0}
+    minHeight: 0
+    maxHeight: 0
+    minSlope: 0
+    maxSlope: 1
+    dryColor: {r: 1, g: 1, b: 1, a: 1}
+    healthyColor: {r: 1, g: 1, b: 1, a: 1}
+    heightRange: {x: 1, y: 5}
+    widthRange: {x: 1, y: 1}
+    noiseSpread: 0.5
+    overlap: 0.01
+    feather: 0.05
+    density: 0.001
     remove: 0
+  - prototype: {fileID: 0}
+    prototypeTexture: {fileID: 2800000, guid: ba0dbc11bd11158b1100de1b44295342, type: 3}
+    minHeight: 0
+    maxHeight: 0.2
+    minSlope: 0
+    maxSlope: 70
+    dryColor: {r: 0.745283, g: 0.61758864, b: 0.0738252, a: 1}
+    healthyColor: {r: 0.42905167, g: 0.8396226, b: 0.059407253, a: 1}
+    heightRange: {x: 1, y: 3}
+    widthRange: {x: 1, y: 2}
+    noiseSpread: 0.1
+    overlap: 0.01
+    feather: 0.05
+    density: 1
+    remove: 0
+  maxDetails: 164
+  detailSpacing: 2
   terrain: {fileID: 525667827}
   terrainData: {fileID: 15600000, guid: da1a82ea97e564246b5be29983ab0b2b, type: 2}
   terrainLayer: 9
@@ -254,7 +324,7 @@ Terrain:
   m_TreeBillboardDistance: 50
   m_TreeCrossFadeLength: 5
   m_TreeMaximumFullLODCount: 50
-  m_DetailObjectDistance: 80
+  m_DetailObjectDistance: 164
   m_DetailObjectDensity: 1
   m_HeightmapPixelError: 5
   m_SplatMapDistance: 1000

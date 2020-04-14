@@ -43,6 +43,14 @@ public class CustomTerrain : MonoBehaviour
     public float voronoiMinHeight = 0.1f;
     public float voronoiMaxHeight = 0.5f;
 
+    public enum VoronoiType { Linear = 0, Power = 1, Combined = 2, SinPow = 3 }
+    public VoronoiType voronoiType = VoronoiType.Linear;
+
+    public List<PerlinParamters> perlinParamters = new List<PerlinParamters>() {
+        new PerlinParamters()
+    };
+
+
     //MIDPOINT -------------------
     public float MPHeightMin = -5;
     public float MPHeightMax = 5;
@@ -101,13 +109,35 @@ public class CustomTerrain : MonoBehaviour
     public int treeSpacing = 5;
 
 
+    //Details ------------------------------------
 
-    public enum VoronoiType {  Linear = 0, Power = 1, Combined =2, SinPow = 3}
-    public VoronoiType voronoiType = VoronoiType.Linear;
+    [System.Serializable]
+    public class Detail {
+        public GameObject prototype = null;
+        public Texture2D prototypeTexture = null;
+        public float minHeight = 0.1f;
+        public float maxHeight = 0.2f;
+        public float minSlope = 0;
+        public float maxSlope = 1;
+        public Color dryColor = Color.white;
+        public Color healthyColor = Color.white;
+        public Vector2 heightRange = new Vector2(1, 1);
+        public Vector2 widthRange = new Vector2(1, 1);
+        public float noiseSpread = 0.5f;
+        public float overlap = 0.01f;
+        public float feather = 0.05f;
+        public float density = 0.5f;
+        public bool remove = false;
+    }
 
-    public List<PerlinParamters> perlinParamters = new List<PerlinParamters>() {
-        new PerlinParamters()
+    public List<Detail> details = new List<Detail>() {
+        new Detail()
     };
+
+    public int maxDetails = 5000;
+    public int detailSpacing = 5;
+
+
 
     public Terrain terrain;
     public TerrainData terrainData;
@@ -726,7 +756,7 @@ public class CustomTerrain : MonoBehaviour
     }
 
     /// <summary>
-    /// Removes the vegetation data from the ist if it has its remove bool checked. Will always have one item left in the list
+    /// Removes the vegetation data from the list if it has its remove bool checked. Will always have one item left in the list
     /// </summary>
     public void RemoveVegetation() {
 
@@ -744,6 +774,98 @@ public class CustomTerrain : MonoBehaviour
         vegetation = keptVegetation;
     }
 
+    /// <summary>
+    /// Function responsible for adding in grass and other details onto the terrain. Adds in every detail object that is added into the details list and trys to place it onto the terrain.
+    /// Each details can have their propeties changed to affect how it looks on the terrain and where it can be placed. 
+    /// </summary>
+    public void AddDetails() {
+        DetailPrototype[] newDetailPrototypes;
+        newDetailPrototypes = new DetailPrototype[details.Count];
+        int dindex = 0;
+        float[,] heightMap = terrainData.GetHeights(0, 0, terrainData.heightmapWidth, terrainData.heightmapHeight);
+        foreach (Detail d in details) {
+            newDetailPrototypes[dindex] = new DetailPrototype();
+            newDetailPrototypes[dindex].prototype = d.prototype;
+            newDetailPrototypes[dindex].prototypeTexture = d.prototypeTexture;
+            newDetailPrototypes[dindex].healthyColor = d.healthyColor;
+            newDetailPrototypes[dindex].dryColor = d.dryColor;
+            newDetailPrototypes[dindex].minHeight = d.heightRange.x;
+            newDetailPrototypes[dindex].maxHeight = d.heightRange.y;
+            newDetailPrototypes[dindex].minWidth = d.widthRange.x;
+            newDetailPrototypes[dindex].maxWidth = d.widthRange.y;
+            newDetailPrototypes[dindex].noiseSpread = d.noiseSpread;
 
+
+            if (newDetailPrototypes[dindex].prototype) {
+                newDetailPrototypes[dindex].usePrototypeMesh = true;
+                newDetailPrototypes[dindex].renderMode = DetailRenderMode.VertexLit;
+            }
+            else {
+                newDetailPrototypes[dindex].usePrototypeMesh = false;
+                newDetailPrototypes[dindex].renderMode = DetailRenderMode.GrassBillboard;
+            }
+            dindex++;
+        }
+        terrainData.detailPrototypes = newDetailPrototypes;
+
+        for (int i = 0; i < terrainData.detailPrototypes.Length; i++) {
+            int[,] detailMap = new int[terrainData.detailWidth, terrainData.detailHeight];
+
+            for(int y = 0; y < terrainData.detailHeight; y += detailSpacing) {
+                for(int x = 0; x < terrainData.detailWidth; x += detailSpacing) {
+                    if (UnityEngine.Random.Range(0.0f, 1.0f) > details[i].density) continue;
+                    int xHM = (int)(x / (float)terrainData.detailWidth * terrainData.heightmapWidth);
+                    int yHM = (int)(y / (float)terrainData.detailHeight * terrainData.heightmapHeight);
+
+                    float thisNoise = Utility.Map(Mathf.PerlinNoise(x * details[i].feather,
+                                                                    y * details[i].feather),
+                                                                    0, 1, 0.5f, 1);
+
+                    float thisHeightStart = details[i].minHeight * thisNoise -
+                                            details[i].overlap * thisNoise;
+
+                    float nextHeightStart = details[i].maxHeight * thisNoise +
+                                            details[i].overlap * thisNoise;
+
+                    float thisHeight =  heightMap[yHM, xHM];
+                    float steepness = terrainData.GetSteepness(xHM / (float)terrainData.size.x,
+                                                               yHM / (float)terrainData.size.y);
+
+                    if((thisHeight >= thisHeightStart && thisHeight <= nextHeightStart) &&
+                        (steepness >= details[i].minSlope && steepness <= details[i].maxSlope)) {
+
+                        detailMap[y, x] = 1;
+                    }                 
+                }
+            }
+            terrainData.SetDetailLayer(0, 0, i, detailMap);
+        }
+
+    }
+
+    /// <summary>
+    /// Adds new details properties to the details list.
+    /// </summary>
+    public void AddNewDetails() {
+
+        details.Add(new Detail());
+    }
+
+    /// <summary>
+    /// Removes details property from the details list if its remove bool is checked. 
+    /// </summary>
+    public void RemoveDetails() {
+        List<Detail> keptDetails = new List<Detail>();
+        for(int i = 0; i < details.Count; i++) {
+            if (!details[i].remove) {
+                keptDetails.Add(details[i]);
+            }
+        }
+        if(keptDetails.Count == 0) {
+            keptDetails.Add(details[0]); // add at least 1
+        }
+        details = keptDetails;
+
+    }
 
 }
