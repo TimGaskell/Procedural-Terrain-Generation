@@ -154,7 +154,7 @@ MonoBehaviour:
   randomHeightRange: {x: 0, y: 0.1}
   heightMapImage: {fileID: 0}
   heightMapScale: {x: 1, y: 1, z: 1}
-  resetTerrain: 1
+  resetTerrain: 0
   perlinXScale: 0.01
   perlinYScale: 0.01
   perlinOffsetX: 0
@@ -177,11 +177,11 @@ MonoBehaviour:
     mPerlinOffsetX: 0
     mPerlinOffsetY: 0
     remove: 0
-  MPHeightMin: -5
-  MPHeightMax: 5
-  MPHeightDampernerPower: 2
-  MPRoughness: 2
-  SmoothAmount: 1
+  MPHeightMin: 0
+  MPHeightMax: 0.5
+  MPHeightDampernerPower: 3
+  MPRoughness: 1
+  SmoothAmount: 3
   splatHeights:
   - texture: {fileID: 2800000, guid: 69930cb68b9e44a93877a4fd343b0e89, type: 3}
     minHeight: 0
@@ -245,21 +245,7 @@ MonoBehaviour:
     minRotation: 0
     maxRotation: 360
     density: 0.5
-    remove: 0
-  - mesh: {fileID: -927199367670048503, guid: 2a44e858bd119bca11002b7b44295342, type: 3}
-    minHeight: 0
-    maxHeight: 1
-    minSlope: 0
-    maxSlope: 45
-    minScale: 0.5
-    maxScale: 1
-    colour1: {r: 0.5943396, g: 0.11644165, b: 0, a: 1}
-    colour2: {r: 0.76367724, g: 0.7735849, b: 0.032840855, a: 1}
-    lightColour: {r: 0.91025823, g: 1, b: 0.24056602, a: 1}
-    minRotation: 0
-    maxRotation: 360
-    density: 0.5
-    remove: 0
+    remove: 1
   maxTrees: 7104
   treeSpacing: 14
   details:
@@ -278,24 +264,18 @@ MonoBehaviour:
     overlap: 0.01
     feather: 0.05
     density: 0.001
-    remove: 0
-  - prototype: {fileID: 0}
-    prototypeTexture: {fileID: 2800000, guid: ba0dbc11bd11158b1100de1b44295342, type: 3}
-    minHeight: 0
-    maxHeight: 0.2
-    minSlope: 0
-    maxSlope: 70
-    dryColor: {r: 0.745283, g: 0.61758864, b: 0.0738252, a: 1}
-    healthyColor: {r: 0.42905167, g: 0.8396226, b: 0.059407253, a: 1}
-    heightRange: {x: 1, y: 3}
-    widthRange: {x: 1, y: 2}
-    noiseSpread: 0.1
-    overlap: 0.01
-    feather: 0.05
-    density: 1
-    remove: 0
+    remove: 1
   maxDetails: 164
   detailSpacing: 2
+  waterHeight: 0.02
+  waterGO: {fileID: 100000, guid: 780611a67e8e941a2b3aa96e5915a793, type: 3}
+  shoreLineMaterial: {fileID: 2100000, guid: c6b1d42a316e4e5458a5c7a10f108b41, type: 2}
+  erosionType: 0
+  erosionStrength: 0.1
+  springsPerRiver: 5
+  solubility: 0.01
+  droplets: 474
+  erosionSmoothAmount: 3
   terrain: {fileID: 525667827}
   terrainData: {fileID: 15600000, guid: da1a82ea97e564246b5be29983ab0b2b, type: 2}
   terrainLayer: 9

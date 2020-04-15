@@ -48,6 +48,17 @@ public class CustomTerrainEditor : Editor
     SerializedProperty maxDetails;
     SerializedProperty detailSpacing;
 
+    SerializedProperty waterHeight;
+    SerializedProperty waterGO;
+    SerializedProperty shoreMaterial;
+
+    SerializedProperty ErosionType;
+    SerializedProperty ErosionStrength;
+    SerializedProperty SpringsPerRiver;
+    SerializedProperty Solubility;
+    SerializedProperty Droplets;
+    SerializedProperty erosionSmoothAmount;
+
 
     //Fold Outs ------
     bool showRandom = false;
@@ -61,6 +72,8 @@ public class CustomTerrainEditor : Editor
     bool showHeights = false;
     bool showVegetation = false;
     bool showDetail = false;
+    bool showWater = false;
+    bool showEroision = false;
 
 
     Texture2D hmTexture;
@@ -102,6 +115,16 @@ public class CustomTerrainEditor : Editor
         details = serializedObject.FindProperty("details");
         maxDetails = serializedObject.FindProperty("maxDetails");
         detailSpacing = serializedObject.FindProperty("detailSpacing");
+        waterHeight = serializedObject.FindProperty("waterHeight");
+        waterGO = serializedObject.FindProperty("waterGO");
+        shoreMaterial = serializedObject.FindProperty("shoreLineMaterial");
+
+        ErosionType = serializedObject.FindProperty("erosionType");
+        ErosionStrength = serializedObject.FindProperty("erosionStrength");
+        SpringsPerRiver = serializedObject.FindProperty("springsPerRiver");
+        Solubility = serializedObject.FindProperty("solubility");
+        Droplets = serializedObject.FindProperty("droplets");
+        erosionSmoothAmount = serializedObject.FindProperty("erosionSmoothAmount");
 
     }
 
@@ -351,6 +374,46 @@ public class CustomTerrainEditor : Editor
 
                 terrain.AddDetails();
             }
+        }
+
+        //Items included in the foldout for generating Water onto the map.
+        showWater = EditorGUILayout.Foldout(showWater, "Water");
+
+        if (showWater) {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Water", EditorStyles.boldLabel);
+            EditorGUILayout.Slider(waterHeight, 0, 1, new GUIContent("Water Height"));
+            EditorGUILayout.PropertyField(waterGO);
+
+            if(GUILayout.Button("Add Water")) {
+                terrain.Addwater();
+            }
+
+            EditorGUILayout.PropertyField(shoreMaterial);
+            if(GUILayout.Button("Add ShoreLine")) {
+                terrain.DrawShoreLine();
+            }
+
+        }
+
+        //Items included in the foldout for enabling different types of errosion to occur on the terrain.
+        showEroision = EditorGUILayout.Foldout(showEroision, "Erosion");
+
+        if (showEroision) {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Erosion", EditorStyles.boldLabel);
+
+            EditorGUILayout.PropertyField(ErosionType);
+            EditorGUILayout.Slider(ErosionStrength, 0, 1, new GUIContent("Erosion Strength"));
+            EditorGUILayout.IntSlider(Droplets, 0, 500, new GUIContent("Droplets"));
+            EditorGUILayout.Slider(Solubility, 0.001f, 1, new GUIContent("Solubility"));
+            EditorGUILayout.IntSlider(SpringsPerRiver, 0, 20, new GUIContent("Springs Per River"));
+            EditorGUILayout.IntSlider(erosionSmoothAmount, 0, 10, new GUIContent("Smooth Amount"));
+
+            if (GUILayout.Button("Erode")) {
+                terrain.Erode();
+            }
+
         }
     
 

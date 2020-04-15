@@ -137,7 +137,20 @@ public class CustomTerrain : MonoBehaviour
     public int maxDetails = 5000;
     public int detailSpacing = 5;
 
+    //Water Level --------------------------
+    public float waterHeight = 0.5f;
+    public GameObject waterGO;
+    public Material shoreLineMaterial;
 
+
+    //Erosion -----------------------------
+    public enum ErosionType { Rain = 0, Thermal = 1, Tidal = 2, River = 3, Wind = 4}
+    public ErosionType erosionType = ErosionType.Rain;
+    public float erosionStrength = 0.1f;
+    public int springsPerRiver = 5;
+    public float solubility = 0.01f;
+    public int droplets = 10;
+    public int erosionSmoothAmount = 5;
 
     public Terrain terrain;
     public TerrainData terrainData;
@@ -865,6 +878,161 @@ public class CustomTerrain : MonoBehaviour
             keptDetails.Add(details[0]); // add at least 1
         }
         details = keptDetails;
+
+    }
+
+    /// <summary>
+    /// Creates a water game object inside of the scene at the center of the terrain, scaled to fit the entire terrain inside. Its height is dependent on what is supplied in the editor.
+    /// </summary>
+    public void Addwater() {
+
+        GameObject water = GameObject.Find("water");
+        if (!water) {
+            water = Instantiate(waterGO, this.transform.position, this.transform.rotation);
+            water.name = "water";
+        }
+        water.transform.position = this.transform.position + new Vector3(terrainData.size.x / 2, 
+                                                                         waterHeight * terrainData.size.y, 
+                                                                         terrainData.size.z / 2);
+      
+        water.transform.localScale = new Vector3(terrainData.size.x, 1, terrainData.size.z);
+    }
+
+    /// <summary>
+    /// Creates the shore mesh that is placed around terrain points that are out of the water which it intersects. 
+    /// It firstly creates a quad around each point where the current point on the height map is under the water but its neighbor is above it.
+    /// These meshes are combined together to form a singular mesh and given an animation script and texture which displays the shore.
+    /// </summary>
+    public void DrawShoreLine() {
+
+        float[,] heightMap = terrainData.GetHeights(0, 0, terrainData.heightmapWidth, terrainData.heightmapHeight);
+
+        int quadCount = 0;
+
+        for(int y = 0; y < terrainData.heightmapHeight; y++) {
+            for(int x = 0; x < terrainData.heightmapWidth; x++) {
+
+                //Find spot on shore
+                Vector2 thisLocation = new Vector2(x, y);
+                List<Vector2> neighbours = GenerateNeighbours(thisLocation, terrainData.heightmapWidth, terrainData.heightmapHeight);
+
+                //Generates Quads for each point terrain intersects water
+                foreach(Vector2 n in neighbours) {
+                    if(heightMap[x,y] < waterHeight && heightMap[(int)n.x, (int)n.y] > waterHeight) {
+                       
+                        quadCount++;
+                        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                        go.transform.localScale *= 10.0f;
+
+                        go.transform.position = this.transform.position + new Vector3(y / (float)terrainData.heightmapHeight * terrainData.size.z,
+                                                                                      waterHeight * terrainData.size.y,
+                                                                                      x / (float)terrainData.heightmapWidth * terrainData.size.x);
+                       
+                        go.transform.LookAt(new Vector3(n.y / (float)terrainData.heightmapHeight * terrainData.size.x,
+                                                        waterHeight * terrainData.size.y,
+                                                        n.x / (float)terrainData.heightmapWidth * terrainData.size.z)); //Look towards the shoreline
+                        go.transform.Rotate(90, 0, 0); //rotate quad to be flat
+                        go.tag = "Shore";                    
+                     
+                    }
+                }
+            }
+        }
+
+        //Gain all meshes of quads, Combines them
+        GameObject[] shoreQuads = GameObject.FindGameObjectsWithTag("Shore");
+        MeshFilter[] meshFilters = new MeshFilter[shoreQuads.Length];
+        for(int m = 0; m < shoreQuads.Length; m++) {
+            meshFilters[m] = shoreQuads[m].GetComponent<MeshFilter>();
+        }
+        CombineInstance[] combine = new CombineInstance[meshFilters.Length];
+        int i = 0;
+        while(i < meshFilters.Length) {
+            combine[i].mesh = meshFilters[i].sharedMesh;
+            combine[i].transform = meshFilters[i].transform.localToWorldMatrix;
+            meshFilters[i].gameObject.SetActive(false);
+            i++;
+        }
+
+        GameObject currentShoreLine = GameObject.Find("ShoreLine");
+
+        // Creates new gameonject that holds the combined meshes of the quads
+        if (currentShoreLine) {
+            DestroyImmediate(currentShoreLine);
+        }
+        GameObject shoreLine = new GameObject();
+        shoreLine.name = "ShoreLine";
+        shoreLine.AddComponent<WaveAnimation>();
+        shoreLine.transform.position = this.transform.position;
+        shoreLine.transform.rotation = this.transform.rotation;
+        MeshFilter thisMF = shoreLine.AddComponent<MeshFilter>();
+        thisMF.mesh = new Mesh();
+        shoreLine.GetComponent<MeshFilter>().sharedMesh.CombineMeshes(combine);
+
+        MeshRenderer r = shoreLine.AddComponent<MeshRenderer>();
+        r.sharedMaterial = shoreLineMaterial;
+
+        //Destroys the original quads of the terrain
+        for(int sQ = 0; sQ < shoreQuads.Length; sQ++) {
+            DestroyImmediate(shoreQuads[sQ]);
+        }
+    }
+
+    /// <summary>
+    /// Function responsible for enabling a type of erosion to occur on the terrain.
+    /// </summary>
+    public void Erode() {
+
+        if(erosionType == ErosionType.Rain) {
+            Rain();
+        }
+        else if(erosionType == ErosionType.Tidal) {
+            Tidal();
+        }
+        else if(erosionType == ErosionType.Thermal) {
+            Thermal();
+        }
+        else if(erosionType == ErosionType.River) {
+            River();
+        }
+        else if(erosionType == ErosionType.Wind) {
+            Wind();
+        }
+
+        SmoothAmount = erosionSmoothAmount;
+        Smooth();
+    }
+
+    /// <summary>
+    /// Erodes the map by lowering random points on the map based on the erosion strength. Meant to simulate water droplets striking the terrain.
+    /// </summary>
+    void Rain() {
+
+        float[,] heightMap = terrainData.GetHeights(0, 0, terrainData.heightmapWidth, terrainData.heightmapHeight);
+
+        for(int i =0; i < droplets; i++) {
+            heightMap[UnityEngine.Random.Range(0, terrainData.heightmapWidth),
+                      UnityEngine.Random.Range(0, terrainData.heightmapHeight)] -= erosionStrength;
+        }
+        terrainData.SetHeights(0, 0, heightMap);
+
+    }
+
+    void Tidal() {
+
+    }
+
+    void Thermal() {
+
+    }
+
+    void River() {
+
+
+    }
+
+    void Wind() {
+
 
     }
 
