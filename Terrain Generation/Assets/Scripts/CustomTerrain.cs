@@ -147,6 +147,7 @@ public class CustomTerrain : MonoBehaviour
     public enum ErosionType { Rain = 0, Thermal = 1, Tidal = 2, River = 3, Wind = 4}
     public ErosionType erosionType = ErosionType.Rain;
     public float erosionStrength = 0.1f;
+    public float erosionAmount = 0.01f;
     public int springsPerRiver = 5;
     public float solubility = 0.01f;
     public int droplets = 10;
@@ -598,42 +599,44 @@ public class CustomTerrain : MonoBehaviour
         }
 
         terrainData.terrainLayers = newSplatPrototype;
-        float[,] heightMap = terrainData.GetHeights(0, 0, terrainData.heightmapResolution, terrainData.heightmapResolution);
-        float[,,] splatMapData = new float[terrainData.alphamapHeight, terrainData.alphamapWidth, terrainData.alphamapLayers];
 
-        for(int y = 0; y < terrainData.alphamapHeight; y++) {
-            for(int x = 0; x < terrainData.alphamapWidth; x++) {
+        float[,] heightMap = terrainData.GetHeights(0, 0, terrainData.heightmapWidth,
+                                                          terrainData.heightmapHeight);
+        float[,,] splatmapData = new float[terrainData.alphamapWidth,
+                                               terrainData.alphamapHeight,
+                                               terrainData.alphamapLayers];
 
-                float[] splat = new float[terrainData.alphamapLayers];                
-                for(int i =0; i < splatHeights.Count; i++) {
-
-                    float noise = Mathf.PerlinNoise(x * splatHeights[i].SplatNoiseXScale, y * splatHeights[i].SplatNoiseYScale) * splatHeights[i].SplatNoiseScalar;
+        for (int y = 0; y < terrainData.alphamapHeight; y++) {
+            for (int x = 0; x < terrainData.alphamapWidth; x++) {
+                float[] splat = new float[terrainData.alphamapLayers];
+                for (int i = 0; i < splatHeights.Count; i++) {
+                    float noise = Mathf.PerlinNoise(x * splatHeights[i].SplatNoiseXScale,
+                                                    y * splatHeights[i].SplatNoiseYScale)
+                                       * splatHeights[i].SplatNoiseScalar;
                     float offset = splatHeights[i].SplatOffSet + noise;
-
-                    //Sets the height ranges for texture of where it can be placed.
                     float thisHeightStart = splatHeights[i].minHeight - offset;
                     float thisHeightStop = splatHeights[i].maxHeight + offset;
+                    //float steepness = GetSteepness(heightMap, x, y, 
+                    //                               terrainData.heightmapWidth, 
+                    //                               terrainData.heightmapHeight);
 
-                    // Another way to manually get the steepness of the terrain based on its neighbors; 
-                    //float steepness = GetSteepness(heightMap, x, y, terrainData.heightmapWidth, terrainData.heightmapHeight); 
+                    float steepness = terrainData.GetSteepness(y / (float)terrainData.alphamapHeight,
+                                           x / (float)terrainData.alphamapWidth);
 
-                    //Sets the steepness of the terrain. Used for texturing based if steepness is too great
-                    float steepness = terrainData.GetSteepness(y / (float)terrainData.alphamapHeight, x / (float)terrainData.alphamapWidth);
-
-                    if((heightMap[x,y] >= thisHeightStart && heightMap[x,y] <= thisHeightStop)&&
+                    if ((heightMap[x, y] >= thisHeightStart && heightMap[x, y] <= thisHeightStop) &&
                         (steepness >= splatHeights[i].minSlope && steepness <= splatHeights[i].maxSlope)) {
                         splat[i] = 1;
                     }
                 }
                 NormalizeVector(splat);
-                for(int j = 0; j < splatHeights.Count; j++) {
-                    splatMapData[x, y, j] = splat[j];
+                for (int j = 0; j < splatHeights.Count; j++) {
+                    splatmapData[x, y, j] = splat[j];
                 }
-
             }
         }
-        terrainData.SetAlphamaps(0, 0, splatMapData);
+        terrainData.SetAlphamaps(0, 0, splatmapData);
     }
+
 
     /// <summary>
     /// Gets the gradient between a current point and its neighboring point by (x+1,y) and (x,y+1)
@@ -1018,22 +1021,165 @@ public class CustomTerrain : MonoBehaviour
 
     }
 
+    /// <summary>
+    /// Erodes the terrain where the water intersects the land. At these points that terrain is flattened to create a shoreline 
+    /// </summary>
     void Tidal() {
 
+        float[,] heightMap = terrainData.GetHeights(0, 0, terrainData.heightmapWidth, terrainData.heightmapHeight);
+
+        for (int y = 0; y < terrainData.heightmapHeight; y++) {
+            for (int x = 0; x < terrainData.heightmapWidth; x++) {
+
+                Vector2 thisLocation = new Vector2(x, y);
+                List<Vector2> neightbours = GenerateNeighbours(thisLocation, terrainData.heightmapWidth, terrainData.heightmapHeight);
+
+                foreach(Vector2 n in neightbours) {
+
+                    if(heightMap[x,y] < waterHeight && heightMap[(int)n.x, (int)n.y] > waterHeight) {
+
+                        heightMap[x, y] = waterHeight;
+                        heightMap[(int)n.x, (int)n.y] = waterHeight;
+                    }
+                }
+
+            }
+        }
+        terrainData.SetHeights(0, 0, heightMap);
+
     }
 
+    /// <summary>
+    /// Erodes the terrain by causing landslides to occur across the terrain. If a point on the map has a neighbor that is lover than itself, it displaces some of its height to its lower neighbors
+    /// </summary>
     void Thermal() {
 
+        float[,] heightmap = terrainData.GetHeights(0, 0, terrainData.heightmapWidth, terrainData.heightmapHeight);
+
+        for(int y =0; y < terrainData.heightmapHeight; y++) {
+            for(int x = 0; x < terrainData.heightmapWidth; x++) {
+
+                Vector2 thisLocation = new Vector2(x, y);
+                List<Vector2> neightbours = GenerateNeighbours(thisLocation, terrainData.heightmapWidth, terrainData.heightmapHeight);
+
+                foreach(Vector2 n in neightbours) {
+                    if(heightmap[x,y] > heightmap[(int)n.x, (int)n.y] + erosionStrength) {
+                        float currentHeight = heightmap[x, y];
+                        heightmap[x, y] -= currentHeight * erosionAmount;
+                        heightmap[(int)n.x, (int)n.y] += currentHeight * erosionAmount;
+                    }
+                }
+
+            }
+        }
+        terrainData.SetHeights(0, 0, heightmap);
+
     }
 
+    /// <summary>
+    /// Erodes the river by simulating rainfall rolling down a terrain. Random points are chosen on the terrain and the water droplet moves down to neighbours of lower elevation.
+    /// As the water moves to lower elevation, its strength decreases until it eventually dries up.
+    /// </summary>
     void River() {
 
+        float[,] heightmap = terrainData.GetHeights(0, 0, terrainData.heightmapWidth, terrainData.heightmapHeight);
 
+        float[,] erosionMap = new float[terrainData.heightmapWidth, terrainData.heightmapHeight];
+
+        for(int i = 0; i < droplets; i++) {
+            
+            Vector2 dropletPosition = new Vector2(UnityEngine.Random.Range(0, terrainData.heightmapWidth),
+                                                  UnityEngine.Random.Range(0, terrainData.heightmapHeight));
+            
+            erosionMap[(int)dropletPosition.x, (int)dropletPosition.y] = erosionStrength;
+
+            for(int j =0; j < springsPerRiver; j++) {
+
+                erosionMap = RunRiver(dropletPosition, heightmap, erosionMap, terrainData.heightmapWidth, terrainData.heightmapHeight);
+            }
+        }
+
+        for (int y = 0; y < terrainData.heightmapHeight; y++) {
+            for (int x = 0; x < terrainData.heightmapWidth; x++) {
+
+                if(erosionMap[x,y] > 0) {
+                    heightmap[x, y] -= erosionMap[x, y];
+                }
+            }
+        }
+        terrainData.SetHeights(0, 0, heightmap);
     }
 
+    /// <summary>
+    /// Responsible for simulating water running down the terrain. Each neighbor of the droplets position is looped through to see if its lower than its original elevation.
+    /// If it is, it marks that there is erosion to occur there in the erosion map. If not, it reduces the droplets strength. As its moving downwards on the terrain it is also losing its strength so it will eventually stop
+    /// </summary>
+    /// <param name="dropletPosition"> Origin point of water source </param>
+    /// <param name="heightmap"> 2D array of height map </param>
+    /// <param name="erosionMap"> 2D array of erosion map</param>
+    /// <param name="width"> width of map </param>
+    /// <param name="height"> height of map</param>
+    /// <returns> 2D array of points on the terrain where erosion will occur </returns>
+    float[,] RunRiver(Vector3 dropletPosition, float[,] heightmap, float[,] erosionMap, int width,int height) {
+
+        while(erosionMap[(int)dropletPosition.x, (int)dropletPosition.y] > 0) {
+
+            List<Vector2> neighbours = GenerateNeighbours(dropletPosition, width, height);
+            neighbours.Shuffle();
+            bool foundLower = false;
+
+            foreach(Vector2 n in neighbours) {
+
+                if(heightmap[(int)n.x, (int)n.y] < heightmap[(int)dropletPosition.x, (int)dropletPosition.y]) {
+                    erosionMap[(int)n.x, (int)n.y] = erosionMap[(int)dropletPosition.x, (int)dropletPosition.y] - solubility;
+                    dropletPosition = n;
+                    foundLower = true;
+                    break;
+                }
+            }
+            if (!foundLower) {
+                erosionMap[(int)dropletPosition.x, (int)dropletPosition.y] -= solubility;
+            }
+        }
+        return erosionMap;
+    }
+
+    /// <summary>
+    /// Erodes the terrain by simulating wind digging up the terrain and displacing it into piles across the map.
+    /// </summary>
     void Wind() {
 
+            float[,] heightMap = terrainData.GetHeights(0, 0,
+                                                terrainData.heightmapWidth,
+                                                terrainData.heightmapHeight);
+            int width = terrainData.heightmapWidth;
+            int height = terrainData.heightmapHeight;
+
+            float WindDir = 30;
+            float sinAngle = -Mathf.Sin(Mathf.Deg2Rad * WindDir);
+            float cosAngle = Mathf.Cos(Mathf.Deg2Rad * WindDir);
+
+            for (int y = -(height - 1) * 2; y <= height * 2; y += 10) {
+                for (int x = -(width - 1) * 2; x <= width * 2; x += 1) {
+                    float thisNoise = (float)Mathf.PerlinNoise(x * 0.06f, y * 0.06f) * 20 * erosionStrength;
+                    int nx = (int)x;
+                    int digy = (int)y + (int)thisNoise;
+                    int ny = (int)y + 5 + (int)thisNoise;
+
+                    Vector2 digCoords = new Vector2(x * cosAngle - digy * sinAngle, digy * cosAngle + x * sinAngle);
+                    Vector2 pileCoords = new Vector2(nx * cosAngle - ny * sinAngle, ny * cosAngle + nx * sinAngle);
+
+                    if (!(pileCoords.x < 0 || pileCoords.x > (width - 1) || pileCoords.y < 0 ||
+                          pileCoords.y > (height - 1) ||
+                         (int)digCoords.x < 0 || (int)digCoords.x > (width - 1) ||
+                         (int)digCoords.y < 0 || (int)digCoords.y > (height - 1))) {
+                        heightMap[(int)digCoords.x, (int)digCoords.y] -= 0.001f;
+                        heightMap[(int)pileCoords.x, (int)pileCoords.y] += 0.001f;
+                    }
+
+                }
+            }
+            terrainData.SetHeights(0, 0, heightMap);
+        }
 
     }
-
-}

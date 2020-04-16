@@ -34,4 +34,25 @@ public static class Utility {
     public static float Map(float value, float originalMin, float originalMax, float targetMin, float targetMax) {
         return (value - originalMin) * (targetMax - targetMin) / (originalMax - originalMin) + targetMin;
     }
+
+    //Fisher-Yates Shuffle
+    public static System.Random r = new System.Random();
+
+    /// <summary>
+    /// Randomization function to shuffle a list into a random order
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="list"> List being shuffled</param>
+    public static void Shuffle<T>(this IList<T> list) {
+
+        int n = list.Count;
+
+        while (n > 1) {
+            n--;
+            int k = r.Next(n + 1);
+            T value = list[k];
+            list[k] = list[n];
+            list[n] = value;
+        }
+    }
 }
