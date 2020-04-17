@@ -144,7 +144,7 @@ public class CustomTerrain : MonoBehaviour
 
 
     //Erosion -----------------------------
-    public enum ErosionType { Rain = 0, Thermal = 1, Tidal = 2, River = 3, Wind = 4}
+    public enum ErosionType { Rain = 0, Thermal = 1, Tidal = 2, River = 3, Wind = 4, Canyon = 5}
     public ErosionType erosionType = ErosionType.Rain;
     public float erosionStrength = 0.1f;
     public float erosionAmount = 0.01f;
@@ -152,6 +152,21 @@ public class CustomTerrain : MonoBehaviour
     public float solubility = 0.01f;
     public int droplets = 10;
     public int erosionSmoothAmount = 5;
+
+
+    //Clouds -----------------------
+    public int NumberOfClouds = 1;
+    public int ParticlePerCloud = 50;
+    public float CloudStartSize = 5;
+    public Vector3 CloudSize = new Vector3(1,1,1);
+    public Material CloudMaterial;
+    public Material CloudShadowMaterial;
+    public Color CloudColor = Color.white;
+    public Color CloudLining = Color.grey;
+    public float MinSpeed = 0.2f;
+    public float MaxSpeed = 0.5f;
+    public float DistanceTravelled = 500.0f;
+
 
     public Terrain terrain;
     public TerrainData terrainData;
@@ -1001,6 +1016,9 @@ public class CustomTerrain : MonoBehaviour
         else if(erosionType == ErosionType.Wind) {
             Wind();
         }
+        else if(erosionType == ErosionType.Canyon) {
+            DigCanyon();
+        }
 
         SmoothAmount = erosionSmoothAmount;
         Smooth();
@@ -1182,4 +1200,120 @@ public class CustomTerrain : MonoBehaviour
             terrainData.SetHeights(0, 0, heightMap);
         }
 
+
+    float[,] tempHeightMap;
+    /// <summary>
+    /// Function used for creating a canyon in the scene. Has a random starting point on the edge of the terrain without it being too close to the max height of the map.
+    /// As long as the positions being calculated are within the map, it will dig down a defined depth and continue going forward. This continues until it reaches an edge of the map.
+    /// </summary>
+    public void DigCanyon() {
+
+        float digDepth = 0.05f;
+        float bankSlope = 0.001f;
+        float maxDepth = 0;
+
+        tempHeightMap = terrainData.GetHeights(0, 0, terrainData.heightmapWidth, terrainData.heightmapHeight);
+
+        int cx = 1;
+        int cy = UnityEngine.Random.Range(10, terrainData.heightmapHeight - 10);
+
+        while (cy >= 0 && cy < terrainData.heightmapHeight && cx > 0 && cx < terrainData.heightmapWidth) { //WHile still inside the dimensions of the height map
+            CanyonCrawler(cx, cy, tempHeightMap[cx, cy] - digDepth, bankSlope, maxDepth); //Digs down 
+            cx = cx + UnityEngine.Random.Range(-1, 4);
+            cy = cy + UnityEngine.Random.Range(-2, 3); // goes forward 
+        }
+        terrainData.SetHeights(0, 0, tempHeightMap);
     }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="x"> X coordinate on the terrain </param>
+    /// <param name="y"> Y coordinate on the terrain </param>
+    /// <param name="height"> Height the terrain is being lowered to </param>
+    /// <param name="slope"> Amount of slope height being added to create the edges of the canyon </param>
+    /// <param name="maxDepth"> Maximum amount the canyon can go down </param>
+    void CanyonCrawler(int x, int y, float height, float slope, float maxDepth) {
+
+        if (x < 0 || x >= terrainData.heightmapWidth) return; //off x range of map
+        if (y < 0 || y >= terrainData.heightmapHeight) return; // off y range of map
+        if (height <= maxDepth) return; //if hit lowest level
+        if (tempHeightMap[x, y] <= height) return; //if run into lower elevation
+
+        tempHeightMap[x, y] = height;
+
+        // Digs in the neighbors of the initial hole. Creates the slopes on either side
+        CanyonCrawler(x + 1, y, height + UnityEngine.Random.Range(slope, slope + 0.01f), slope, maxDepth);
+        CanyonCrawler(x - 1, y, height + UnityEngine.Random.Range(slope, slope + 0.01f), slope, maxDepth);
+        CanyonCrawler(x + 1, y + 1, height + UnityEngine.Random.Range(slope, slope + 0.01f), slope, maxDepth);
+        CanyonCrawler(x - 1, y + 1, height + UnityEngine.Random.Range(slope, slope + 0.01f), slope, maxDepth);
+        CanyonCrawler(x, y - 1, height + UnityEngine.Random.Range(slope, slope + 0.01f), slope, maxDepth);
+        CanyonCrawler(x, y + 1, height + UnityEngine.Random.Range(slope, slope + 0.01f), slope, maxDepth);
+    }
+
+    /// <summary>
+    /// Function Responsible for generating the clouds inside of the scene.
+    /// </summary>
+    public void GenerateClouds() {
+
+        GameObject CloudManager = GameObject.Find("CloudManager");
+
+        // If there isn't a cloud manager in the scene, create one
+        if (!CloudManager) {
+            CloudManager = new GameObject();
+            CloudManager.name = "CloudManager";
+            CloudManager.AddComponent<CloudManager>();
+            CloudManager.transform.position = this.transform.position;
+        }
+         
+        //Destroy all clouds already in the scene
+        GameObject[] allClouds = GameObject.FindGameObjectsWithTag("Cloud");
+        for(int i = 0; i < allClouds.Length; i++) {
+            DestroyImmediate(allClouds[i]);
+        }
+
+        //Generate all the clouds
+        for(int c =0; c < NumberOfClouds; c++) {
+            GameObject cloudGO = new GameObject();
+            cloudGO.name = "Cloud" + c;
+            cloudGO.tag = "Cloud";
+
+            //Sets all properties of the game object and links them to the cloud controller on the object.
+            cloudGO.transform.rotation = CloudManager.transform.rotation;
+            cloudGO.transform.position = CloudManager.transform.position;
+            CloudController cc = cloudGO.AddComponent<CloudController>();
+            cc.lining = CloudLining;
+            cc.colour = CloudColor;
+            cc.numberOfParticles = ParticlePerCloud;
+            cc.minSpeed = MinSpeed;
+            cc.maxSpeed = MaxSpeed;
+            cc.distance = DistanceTravelled;
+
+            //Sets the properties of the particle system set on the cloud game object
+            ParticleSystem cloudSystem = cloudGO.AddComponent<ParticleSystem>();
+            Renderer cloudRend = cloudGO.GetComponent<Renderer>();
+            cloudRend.material = CloudMaterial;
+            cloudRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            cloudRend.receiveShadows = false;
+            ParticleSystem.MainModule main = cloudSystem.main;
+            main.loop = false;
+            main.startLifetime = Mathf.Infinity;
+            main.startSpeed = 0;
+            main.startSize = CloudStartSize;
+            main.startColor = Color.white;
+
+            //Sets the properties of the emission on the particle system attached to the cloud
+            var emission = cloudSystem.emission;
+            emission.rateOverTime = 0; //all at once
+            emission.SetBursts(new ParticleSystem.Burst[]{
+                new ParticleSystem.Burst(0.0f, (short)ParticlePerCloud) });
+            var shape = cloudSystem.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.scale = new Vector3(CloudSize.x, CloudSize.y, CloudSize.z);
+
+            cloudGO.transform.parent = CloudManager.transform;
+            cloudGO.transform.localScale = new Vector3(1, 1, 1);
+        }
+    }
+
+}

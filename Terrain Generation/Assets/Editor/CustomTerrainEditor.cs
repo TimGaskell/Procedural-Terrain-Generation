@@ -60,6 +60,18 @@ public class CustomTerrainEditor : Editor
     SerializedProperty erosionSmoothAmount;
     SerializedProperty erosionAmount;
 
+    SerializedProperty NumberOfClouds;
+    SerializedProperty ParticlePerCloud;
+    SerializedProperty CloudStartSize;
+    SerializedProperty CloudSize;
+    SerializedProperty CloudMaterial;
+    SerializedProperty CloudShadowMaterial;
+    SerializedProperty CloudColor;
+    SerializedProperty CloudLining;
+    SerializedProperty MinSpeed;
+    SerializedProperty MaxSpeed;
+    SerializedProperty DistanceTravelled;
+
 
     //Fold Outs ------
     bool showRandom = false;
@@ -75,6 +87,7 @@ public class CustomTerrainEditor : Editor
     bool showDetail = false;
     bool showWater = false;
     bool showEroision = false;
+    bool showClouds = false;
 
 
     Texture2D hmTexture;
@@ -127,6 +140,19 @@ public class CustomTerrainEditor : Editor
         Droplets = serializedObject.FindProperty("droplets");
         erosionSmoothAmount = serializedObject.FindProperty("erosionSmoothAmount");
         erosionAmount = serializedObject.FindProperty("erosionAmount");
+
+        NumberOfClouds = serializedObject.FindProperty("NumberOfClouds");
+        ParticlePerCloud = serializedObject.FindProperty("ParticlePerCloud");
+        CloudStartSize = serializedObject.FindProperty("CloudStartSize");
+        CloudSize = serializedObject.FindProperty("CloudSize");
+        CloudMaterial = serializedObject.FindProperty("CloudMaterial");
+        CloudShadowMaterial = serializedObject.FindProperty("CloudShadowMaterial");
+        CloudColor = serializedObject.FindProperty("CloudColor");
+        CloudLining = serializedObject.FindProperty("CloudLining");
+        MinSpeed = serializedObject.FindProperty("MinSpeed");
+        MaxSpeed = serializedObject.FindProperty("MaxSpeed");
+        DistanceTravelled = serializedObject.FindProperty("DistanceTravelled");
+
 
     }
 
@@ -398,7 +424,7 @@ public class CustomTerrainEditor : Editor
 
         }
 
-        //Items included in the foldout for enabling different types of errosion to occur on the terrain.
+        //Items included in the foldout for enabling different types of erosion to occur on the terrain.
         showEroision = EditorGUILayout.Foldout(showEroision, "Erosion");
 
         if (showEroision) {
@@ -418,7 +444,29 @@ public class CustomTerrainEditor : Editor
             }
 
         }
-    
+
+
+        //Items included in the foldout for generating clouds in the scene
+        showClouds = EditorGUILayout.Foldout(showClouds, "Clouds");
+
+        if (showClouds) {
+
+            EditorGUILayout.PropertyField(NumberOfClouds, new GUIContent("Number of Clouds"));
+            EditorGUILayout.PropertyField(ParticlePerCloud, new GUIContent("Particles Per Cloud"));
+            EditorGUILayout.PropertyField(CloudStartSize, new GUIContent("Cloud Particle Size"));
+            EditorGUILayout.PropertyField(CloudSize, new GUIContent("Size"));
+            EditorGUILayout.PropertyField(CloudMaterial, true);
+            EditorGUILayout.PropertyField(CloudShadowMaterial, true);
+            EditorGUILayout.PropertyField(CloudColor, new GUIContent("Color"));
+            EditorGUILayout.PropertyField(CloudLining, new GUIContent("Lining"));         
+            EditorGUILayout.PropertyField(MinSpeed, new GUIContent("Min Speed"));
+            EditorGUILayout.PropertyField(MaxSpeed, new GUIContent("Max Speed"));
+            EditorGUILayout.PropertyField(DistanceTravelled, new GUIContent("Distance Travelled"));
+
+            if(GUILayout.Button("Generate Clouds")) {
+                terrain.GenerateClouds();
+            }
+        }
 
         // Creates the reset button
         EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
