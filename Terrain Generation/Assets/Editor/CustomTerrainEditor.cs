@@ -63,6 +63,7 @@ public class CustomTerrainEditor : Editor
     SerializedProperty NumberOfClouds;
     SerializedProperty ParticlePerCloud;
     SerializedProperty CloudStartSize;
+    SerializedProperty CloudMaxSize;
     SerializedProperty CloudSize;
     SerializedProperty CloudMaterial;
     SerializedProperty CloudShadowMaterial;
@@ -144,6 +145,7 @@ public class CustomTerrainEditor : Editor
         NumberOfClouds = serializedObject.FindProperty("NumberOfClouds");
         ParticlePerCloud = serializedObject.FindProperty("ParticlePerCloud");
         CloudStartSize = serializedObject.FindProperty("CloudStartSize");
+        CloudMaxSize = serializedObject.FindProperty("MaxCloudSize");
         CloudSize = serializedObject.FindProperty("CloudSize");
         CloudMaterial = serializedObject.FindProperty("CloudMaterial");
         CloudShadowMaterial = serializedObject.FindProperty("CloudShadowMaterial");
@@ -454,14 +456,15 @@ public class CustomTerrainEditor : Editor
             EditorGUILayout.PropertyField(NumberOfClouds, new GUIContent("Number of Clouds"));
             EditorGUILayout.PropertyField(ParticlePerCloud, new GUIContent("Particles Per Cloud"));
             EditorGUILayout.PropertyField(CloudStartSize, new GUIContent("Cloud Particle Size"));
-            EditorGUILayout.PropertyField(CloudSize, new GUIContent("Size"));
+            EditorGUILayout.PropertyField(CloudSize, new GUIContent("Min Size"));
+            EditorGUILayout.PropertyField(CloudMaxSize, new GUIContent("Max Size"));
             EditorGUILayout.PropertyField(CloudMaterial, true);
             EditorGUILayout.PropertyField(CloudShadowMaterial, true);
             EditorGUILayout.PropertyField(CloudColor, new GUIContent("Color"));
             EditorGUILayout.PropertyField(CloudLining, new GUIContent("Lining"));         
             EditorGUILayout.PropertyField(MinSpeed, new GUIContent("Min Speed"));
             EditorGUILayout.PropertyField(MaxSpeed, new GUIContent("Max Speed"));
-            EditorGUILayout.PropertyField(DistanceTravelled, new GUIContent("Distance Travelled"));
+            EditorGUILayout.PropertyField(DistanceTravelled, new GUIContent("Distance Traveled"));
 
             if(GUILayout.Button("Generate Clouds")) {
                 terrain.GenerateClouds();
@@ -483,16 +486,4 @@ public class CustomTerrainEditor : Editor
         serializedObject.ApplyModifiedProperties();
     }
 
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
 }

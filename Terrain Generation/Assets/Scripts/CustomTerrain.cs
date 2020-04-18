@@ -159,6 +159,7 @@ public class CustomTerrain : MonoBehaviour
     public int ParticlePerCloud = 50;
     public float CloudStartSize = 5;
     public Vector3 CloudSize = new Vector3(1,1,1);
+    public Vector3 MaxCloudSize = new Vector3(1, 1, 1);
     public Material CloudMaterial;
     public Material CloudShadowMaterial;
     public Color CloudColor = Color.white;
@@ -190,12 +191,14 @@ public class CustomTerrain : MonoBehaviour
         AddTag(tagsProp, "Terrain",TagType.Tag);
         AddTag(tagsProp, "Cloud",TagType.Tag);
         AddTag(tagsProp, "Shore",TagType.Tag);
+        
 
         //Apply tag changes to tag database
         tagManager.ApplyModifiedProperties();
 
         SerializedProperty layerProp = tagManager.FindProperty("layers");
         terrainLayer = AddTag(layerProp, "Terrain", TagType.Layer);
+        AddTag(layerProp, "Sky", TagType.Layer);
         tagManager.ApplyModifiedProperties();
 
         //take this object
@@ -980,6 +983,7 @@ public class CustomTerrain : MonoBehaviour
         }
         GameObject shoreLine = new GameObject();
         shoreLine.name = "ShoreLine";
+        shoreLine.tag = "Water";
         shoreLine.AddComponent<WaveAnimation>();
         shoreLine.transform.position = this.transform.position;
         shoreLine.transform.rotation = this.transform.rotation;
@@ -1276,7 +1280,7 @@ public class CustomTerrain : MonoBehaviour
         for(int c =0; c < NumberOfClouds; c++) {
             GameObject cloudGO = new GameObject();
             cloudGO.name = "Cloud" + c;
-            cloudGO.tag = "Cloud";
+            cloudGO.tag = "Cloud";     
 
             //Sets all properties of the game object and links them to the cloud controller on the object.
             cloudGO.transform.rotation = CloudManager.transform.rotation;
@@ -1288,6 +1292,24 @@ public class CustomTerrain : MonoBehaviour
             cc.minSpeed = MinSpeed;
             cc.maxSpeed = MaxSpeed;
             cc.distance = DistanceTravelled;
+
+            //Adds Projector object to display shadows on the terrain
+            cloudGO.layer = LayerMask.NameToLayer("Sky");
+            GameObject cloudProjector = new GameObject();
+            cloudProjector.name = "Shadow";
+            cloudProjector.transform.position = cloudGO.transform.position;
+            cloudProjector.transform.forward = Vector3.down;
+            cloudProjector.transform.parent = cloudGO.transform;
+            
+            if(UnityEngine.Random.Range(0,10) < 5) { //Random if cloud projects shadow
+                Projector cp = cloudProjector.AddComponent<Projector>();
+                cp.material = CloudShadowMaterial;
+                cp.farClipPlane = terrainData.size.y;
+                int skyLayerMask = 1 << LayerMask.NameToLayer("Sky"); 
+                int waterLayerMask = 1 << LayerMask.NameToLayer("Water"); 
+                cp.ignoreLayers = skyLayerMask | waterLayerMask; //Stops the projector from putting shadows on anything in the sky or water layer
+                cp.fieldOfView = 20.0f; // Creates smaller clouds
+            }         
 
             //Sets the properties of the particle system set on the cloud game object
             ParticleSystem cloudSystem = cloudGO.AddComponent<ParticleSystem>();
@@ -1309,7 +1331,10 @@ public class CustomTerrain : MonoBehaviour
                 new ParticleSystem.Burst(0.0f, (short)ParticlePerCloud) });
             var shape = cloudSystem.shape;
             shape.shapeType = ParticleSystemShapeType.Sphere;
-            shape.scale = new Vector3(CloudSize.x, CloudSize.y, CloudSize.z);
+            Vector3 newScale = new Vector3(UnityEngine.Random.Range(CloudSize.x, MaxCloudSize.x),
+                                           UnityEngine.Random.Range(CloudSize.y, MaxCloudSize.y),
+                                           UnityEngine.Random.Range(CloudSize.z, MaxCloudSize.z));
+            shape.scale = newScale;
 
             cloudGO.transform.parent = CloudManager.transform;
             cloudGO.transform.localScale = new Vector3(1, 1, 1);

@@ -26,7 +26,12 @@ public class CloudController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        this.transform.Translate(0, 0, 0.01f);
+
+        if (!painted) { //Colors Cloud if it isn't colored yet
+            Paint();
+        }
+
+        this.transform.Translate(0, 0, speed);
 
         if(Vector3.Distance(this.transform.position,startPosition) > distance) {
             Spawn();
@@ -45,5 +50,22 @@ public class CloudController : MonoBehaviour
         this.transform.localPosition = new Vector3(xpos, ypos, zpos);
         speed = UnityEngine.Random.Range(minSpeed, maxSpeed);
         startPosition = this.transform.position;
+    }
+
+    /// <summary>
+    /// Paints the Cloud particles a lerped color between its initial color and its lining color.
+    /// </summary>
+    void Paint() {
+        ParticleSystem.Particle[] particles = new ParticleSystem.Particle[cloudSystem.particleCount];
+        cloudSystem.GetParticles(particles);
+        if(particles.Length > 0) {
+
+            for(int i = 0; i < particles.Length; i++) {
+                particles[i].startColor = Color.Lerp(lining, colour, particles[i].position.y / cloudSystem.shape.scale.y);
+            }
+            painted = true;
+            cloudSystem.SetParticles(particles, particles.Length);
+
+        }
     }
 }
